@@ -1,0 +1,1630 @@
+<title>헤세드 채용공고 편집기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: 상단 바 + 가운데 1000px 대지(축소 표시) + 오른쪽 속성 패널. 대지 안은 테마와 무관한 인쇄물 색. */
+:root{
+  --c-bg:#ebeae6; --c-panel:#ffffff; --c-fg:#1a1a1c; --c-muted:#6d6c68; --c-line:#dddbd5; --c-soft:#f5f4f1;
+  --c-btn:#111111; --c-btn-fg:#ffffff; --c-sel:#2f6bff; --c-acc:#ffc200; --c-danger:#cf3426; --c-ok:#1f8a4c;
+  --f-ui:'Pretendard',system-ui,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --f-serif:'ChosunNm','Nanum Myeongjo',serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --c-bg:#111113; --c-panel:#1b1b1e; --c-fg:#ecebe8; --c-muted:#9d9c98; --c-line:#2f2f34; --c-soft:#242428;
+  --c-btn:#ffc200; --c-btn-fg:#111111; --c-sel:#5d8dff; --c-danger:#ff6b5d; --c-ok:#4fc483; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --c-bg:#111113; --c-panel:#1b1b1e; --c-fg:#ecebe8; --c-muted:#9d9c98; --c-line:#2f2f34; --c-soft:#242428;
+  --c-btn:#ffc200; --c-btn-fg:#111111; --c-sel:#5d8dff; --c-danger:#ff6b5d; --c-ok:#4fc483; color-scheme:dark}
+
+@font-face{font-family:'Pretendard';font-weight:400;font-display:swap;src:url(fonts/Pretendard-Regular.woff2) format('woff2')}
+@font-face{font-family:'Pretendard';font-weight:500;font-display:swap;src:url(fonts/Pretendard-Medium.woff2) format('woff2')}
+@font-face{font-family:'Pretendard';font-weight:700;font-display:swap;src:url(fonts/Pretendard-Bold.woff2) format('woff2')}
+@font-face{font-family:'Pretendard';font-weight:800;font-display:swap;src:url(fonts/Pretendard-ExtraBold.woff2) format('woff2')}
+@font-face{font-family:'ChosunNm';font-weight:400;font-display:swap;src:url(fonts/ChosunNm.woff2) format('woff2')}
+
+html,body{height:100%}
+body{background:var(--c-bg);color:var(--c-fg);font:14px/1.5 var(--f-ui)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--c-sel);outline-offset:2px}
+
+.app{height:100%;display:grid;grid-template-rows:auto auto 1fr;min-height:0}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--c-panel);border-bottom:1px solid var(--c-line);
+  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{font-weight:800;letter-spacing:-.01em;white-space:nowrap;display:flex;align-items:center;gap:8px}
+.brand i{width:8px;height:8px;background:var(--c-acc);transform:rotate(45deg);display:inline-block}
+.title-in{flex:1 1 220px;min-width:0;border:1px solid transparent;background:transparent;border-radius:8px;padding:7px 10px;font-weight:600;font-size:15px}
+.title-in:hover{border-color:var(--c-line)} .title-in:focus{border-color:var(--c-sel);outline:none;background:var(--c-soft)}
+.save{color:var(--c-muted);font-size:12.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.save.err{color:var(--c-danger)}
+.btn{border:1px solid var(--c-line);background:var(--c-panel);border-radius:9px;padding:7px 12px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:var(--c-soft)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.primary{background:var(--c-btn);color:var(--c-btn-fg);border-color:var(--c-btn)}
+.btn.primary:hover{filter:brightness(1.12)}
+.btn.danger{color:var(--c-danger)}
+.btn.sm{padding:4px 9px;font-size:12.5px;border-radius:7px}
+.btn.icon{padding:7px 10px}
+.bar-r{display:flex;gap:6px;align-items:center;margin-left:auto}
+
+.banner{background:#fff6d6;color:#3d3000;padding-block:9px;font-size:13px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid #f0dc96}
+
+.work{display:grid;grid-template-columns:minmax(0,1fr) 320px;min-height:0}
+.stage{overflow:auto;min-width:0;padding:28px 24px 80px}
+.pagewrap{margin:0 auto;position:relative}
+.page{width:1000px;position:absolute;left:0;top:0;transform-origin:0 0;background:#fff;color:#111;font-family:'Pretendard',sans-serif;box-shadow:0 1px 3px rgba(0,0,0,.08),0 12px 40px rgba(0,0,0,.08)}
+.add-end{display:block;margin:18px auto 0;border:1.5px dashed var(--c-line);background:transparent;border-radius:12px;padding:14px 22px;color:var(--c-muted);font-weight:600}
+.add-end:hover{border-color:var(--c-sel);color:var(--c-sel)}
+
+.panel{background:var(--c-panel);border-left:1px solid var(--c-line);overflow:auto;min-width:0;padding:18px 18px 40px}
+.panel h3{font-size:12px;letter-spacing:.06em;color:var(--c-muted);margin:22px 0 10px;font-weight:700}
+.panel h3:first-child{margin-top:0}
+.panel .ptitle{font-size:17px;font-weight:800;margin:0 0 4px}
+.panel .hint{color:var(--c-muted);font-size:12.5px;margin:0 0 6px}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.row+.row{margin-top:8px}
+.lab{font-size:12.5px;color:var(--c-muted);width:64px;flex:none}
+.seg{display:flex;border:1px solid var(--c-line);border-radius:9px;overflow:hidden;flex:1}
+.seg button{flex:1;border:0;background:transparent;padding:6px 4px;font-size:12.5px;font-weight:600;color:var(--c-muted)}
+.seg button+button{border-left:1px solid var(--c-line)}
+.seg button.on{background:var(--c-fg);color:var(--c-panel)}
+.rng{display:flex;align-items:center;gap:8px;flex:1}
+.rng input{flex:1;accent-color:var(--c-sel);min-width:0}
+.rng output{width:52px;text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--c-muted)}
+.sw{display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex:1}
+.sw button{width:26px;height:26px;border-radius:50%;border:1px solid rgba(0,0,0,.18);padding:0}
+.sw button.on{box-shadow:0 0 0 2px var(--c-panel),0 0 0 4px var(--c-sel)}
+.sw input[type=color]{width:30px;height:28px;border:1px solid var(--c-line);border-radius:7px;padding:2px;background:var(--c-panel)}
+.num{display:flex;align-items:center;border:1px solid var(--c-line);border-radius:9px;overflow:hidden}
+.num button{border:0;background:var(--c-soft);width:30px;height:30px;font-size:16px}
+.num input{width:52px;border:0;background:transparent;text-align:center;font-variant-numeric:tabular-nums;height:30px}
+.items{list-style:none;margin:0;padding:0;border:1px solid var(--c-line);border-radius:10px;overflow:hidden}
+.items li{display:flex;align-items:center;gap:4px;padding:6px 6px 6px 10px;font-size:13px}
+.items li+li{border-top:1px solid var(--c-line)}
+.items li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.items li button{border:0;background:transparent;width:26px;height:26px;border-radius:6px;color:var(--c-muted)}
+.items li button:hover{background:var(--c-soft);color:var(--c-fg)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.grid2 .btn{justify-content:center}
+.tip{background:var(--c-soft);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--c-muted);line-height:1.65}
+.tip b{color:var(--c-fg)}
+.typelist{display:grid;gap:8px}
+.typebtn{display:flex;gap:12px;align-items:center;text-align:left;border:1px solid var(--c-line);background:var(--c-panel);border-radius:12px;padding:10px 12px}
+.typebtn:hover{border-color:var(--c-sel)}
+.typebtn b{display:block;font-size:13.5px}
+.typebtn small{display:block;color:var(--c-muted);font-size:12px;line-height:1.4}
+.thumb{width:46px;height:34px;border-radius:6px;flex:none;border:1px solid rgba(0,0,0,.15);position:relative;overflow:hidden;background:#fff}
+.thumb.dark{background:#000}
+.thumb::before,.thumb::after{content:"";position:absolute;background:#c9c7c0;border-radius:2px}
+.thumb.dark::before,.thumb.dark::after{background:#5a5a5a}
+.th-hero::before{left:5px;top:12px;width:16px;height:4px;background:#fff!important}.th-hero::after{right:4px;top:5px;width:18px;height:24px;background:#777!important}
+.th-intro::before{left:10px;top:9px;width:26px;height:3px}.th-intro::after{left:6px;top:18px;width:34px;height:8px}
+.th-pill::before{left:12px;top:11px;width:22px;height:11px;border-radius:9px;background:transparent!important;border:1.5px solid #111}
+.th-jobs::before{left:5px;top:7px;width:16px;height:20px;background:transparent!important;border:1.5px solid #111;border-radius:4px}.th-jobs::after{right:5px;top:7px;width:16px;height:20px;background:transparent!important;border:1.5px solid #111;border-radius:4px}
+.th-table::before{left:5px;top:8px;width:36px;height:2px;background:#111!important;box-shadow:0 6px 0 #c9c7c0,0 12px 0 #c9c7c0,0 18px 0 #111}
+.th-badges::before{left:5px;top:11px;width:10px;height:10px;border-radius:50%;background:#ffc200!important;box-shadow:13px 0 0 #ffc200,26px 0 0 #ffc200}
+.th-text::before{left:12px;top:8px;width:22px;height:3px;background:#111!important}.th-text::after{left:7px;top:16px;width:32px;height:9px}
+.th-photo::before{left:5px;top:7px;width:17px;height:20px}.th-photo::after{right:5px;top:7px;width:17px;height:20px}
+.th-apply::before{left:13px;top:9px;width:20px;height:4px;background:#ffc200!important}.th-apply::after{left:9px;top:18px;width:28px;height:7px;background:#777!important}
+.th-spacer::before{left:8px;top:16px;width:30px;height:0;border-top:1.5px dashed #999;background:transparent!important}
+.th-grid::before{left:5px;top:6px;width:33px;height:19px;border:1.5px solid #111;border-radius:0;
+  background:linear-gradient(#111,#111) 0 50%/100% 1.5px no-repeat,linear-gradient(#111,#111) 30% 0/1.5px 100% no-repeat,linear-gradient(#111,#111) 72% 0/1.5px 100% no-repeat,#fff!important}
+.th-grid::after{display:none}
+.th-steps::before{left:6px;top:16px;width:34px;height:1.5px;background:#111!important}
+.th-steps::after{left:3px;top:10px;width:40px;height:13px;border-radius:0;
+  background:radial-gradient(circle at 6px 6.5px,#fff 4px,#111 4.3px 5.6px,transparent 5.9px),radial-gradient(circle at 20px 6.5px,#fff 4px,#111 4.3px 5.6px,transparent 5.9px),radial-gradient(circle at 34px 6.5px,#fff 4px,#111 4.3px 5.6px,transparent 5.9px)!important}
+.csw-none{background:linear-gradient(135deg,transparent 44%,#cf3426 44% 56%,transparent 56%),#fff!important}
+
+.modal{position:fixed;inset:0;background:rgba(10,10,12,.45);display:flex;align-items:flex-start;justify-content:center;z-index:50;
+  padding:max(40px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));overflow:auto}
+.mcard{background:var(--c-panel);border-radius:16px;width:100%;max-width:560px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.mcard.wide{max-width:720px}
+.mh{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.mh h2{font-size:18px;margin:0;flex:1}
+.plist{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:8px}
+.plist li{display:flex;align-items:center;gap:10px;border:1px solid var(--c-line);border-radius:12px;padding:10px 12px}
+.plist li.cur{border-color:var(--c-sel)}
+.plist .pinfo{flex:1;min-width:0}
+.plist .pinfo b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plist .pinfo small{color:var(--c-muted)}
+.plist .pact{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.empty{color:var(--c-muted);text-align:center;padding:24px 0}
+.opt{display:grid;gap:12px;margin:6px 0 18px}
+.opt .row{flex-wrap:nowrap}
+.opt .lab{width:72px}
+.preview-imgs{display:grid;gap:10px;max-height:60vh;overflow:auto;background:var(--c-soft);border-radius:10px;padding:10px}
+.preview-imgs img{width:100%;display:block;border:1px solid var(--c-line)}
+.prog{font-size:13px;color:var(--c-muted);min-height:20px}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--c-fg);color:var(--c-panel);padding:10px 16px;border-radius:10px;font-size:13px;z-index:60;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+
+/* ---------- 대지(인쇄물) ---------- */
+.page .sec{position:relative;background:var(--sbg);color:var(--ink);--sbg:#fff;--ink:#111;--sub:#4a4a4a;--line:#111;--acc:#ffc200;--chip-fg:#111}
+.page .bg-black{--sbg:#000;--ink:#fff;--sub:rgba(255,255,255,.74);--line:#fff;--acc:#ffc200}
+.page .bg-yellow{--sbg:#ffc200;--ink:#111;--sub:#3b3100;--line:#111;--acc:#111;--chip-fg:#ffc200}
+.page .bg-grey{--sbg:#f3f2ee}
+.page .f{white-space:pre-wrap;word-break:keep-all;overflow-wrap:break-word;outline:none;min-width:8px}
+.page .serif{font-family:'ChosunNm',serif;font-weight:400}
+.dia{display:inline-block;width:5.4px;height:5.4px;background:var(--acc);transform:rotate(45deg);flex:none}
+
+.img-slot{position:relative;overflow:hidden;background:#e7e5df}
+.img-slot.fit-contain,.img-slot.logo{background:transparent}
+.img-slot img{width:100%;height:100%;object-fit:cover;display:block}
+.img-slot.fit-contain img,.img-slot.logo img{object-fit:contain}
+.bg-black .img-slot.empty{background:#2a2a2a}
+
+.t-hero{height:521px}
+.hero-left{position:absolute;left:53.5px;top:54.6px;bottom:41px;width:450px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start}
+.hero-logo{width:237.4px;height:34.6px}
+.eyebrow{display:flex;align-items:center;gap:8px;color:var(--acc);font:500 21.6px/1 'Pretendard',sans-serif;letter-spacing:.01em}
+.eyebrow .dia{margin-left:1.1px}
+.hero-title{font:700 80px/1.2 'Pretendard',sans-serif;letter-spacing:-.012em;margin-top:11px}
+.hero-grid{position:absolute;left:532.5px;top:55.6px;display:grid;grid-template-columns:204.8px 204.8px;grid-auto-rows:204.8px;column-gap:5.75px;row-gap:6.14px}
+
+.t-intro{padding:58px 0 25px}
+.intro-head{font-size:32px;line-height:1.3;text-align:center;margin:0 80px}
+.intro-row{display:flex;align-items:center;margin-top:47px}
+.intro-logo{width:244px;padding-left:63.4px;box-sizing:border-box;flex:none}
+.intro-logo .img-slot{width:128.6px;height:18.7px}
+.intro-rule{width:1px;height:61px;background:var(--line);flex:none}
+.intro-body{font-size:15.15px;line-height:22.72px;letter-spacing:.025em;margin-left:49px;width:660px}
+
+.t-pill{padding:32px 0}
+.pill-wrap{display:flex;justify-content:center}
+.pill{min-width:244.48px;height:69.72px;box-sizing:border-box;border:2px solid var(--line);border-radius:999px;display:flex;align-items:center;justify-content:center;padding:0 42px}
+.pill.v-black{background:var(--ink);border-color:var(--ink);color:var(--sbg)}
+.pill.v-yellow{background:#ffc200;border-color:#111;color:#111}
+.pill-text{font:700 42.11px/1 'Pretendard',sans-serif;letter-spacing:-.01em;text-align:center}
+
+.t-jobs{padding:28px 80px 72px}
+.jobs{display:grid;gap:24px}
+.job{border:2px solid var(--line);border-radius:28px;padding:34px 34px 38px;min-width:0}
+.job-top{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-bottom:20px;border-bottom:1px solid var(--line);margin-bottom:22px}
+.job-name{font:700 34px/1.25 'Pretendard',sans-serif;letter-spacing:-.02em;flex:1;min-width:0}
+.job-count{font:700 20px/1 'Pretendard',sans-serif;background:var(--acc);color:var(--chip-fg);border-radius:999px;padding:10px 18px;flex:none}
+.job-desc{font:400 22px/1.75 'Pretendard',sans-serif;color:var(--sub)}
+
+.t-badges{padding:40px 80px 80px}
+.badges-title{font-size:30px;line-height:1.4;text-align:center;margin-bottom:34px}
+.badges{display:flex;justify-content:center;gap:22px;flex-wrap:wrap}
+.badge{width:186px;height:186px;border-radius:50%;background:var(--acc);color:var(--chip-fg);display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
+.badge .f{font:700 27px/1.3 'Pretendard',sans-serif;text-align:center;letter-spacing:-.02em}
+
+.t-table{padding:28px 80px 88px}
+.tbl{border-top:2px solid var(--line);border-bottom:2px solid var(--line)}
+.tr{display:grid;grid-template-columns:230px minmax(0,1fr);gap:20px;padding:28px 10px}
+.tr+.tr{border-top:1px solid color-mix(in srgb,var(--line) 22%,transparent)}
+.th{display:flex;align-items:flex-start;gap:14px}
+.th .dia{margin-top:15px}
+.th .f{font:700 26px/1.45 'Pretendard',sans-serif;letter-spacing:-.01em}
+.td{font:400 24px/1.6 'Pretendard',sans-serif}
+
+.t-text{padding:60px 80px}
+.tx-title{font-size:34px;line-height:1.45;text-align:center}
+.tx-body{font:400 22px/1.8 'Pretendard',sans-serif;text-align:center;color:var(--sub);margin-top:22px}
+
+.t-photo{padding:24px 80px 60px}
+.t-photo.full{padding-left:0;padding-right:0}
+.photos{display:grid;gap:12px}
+.photos .img-slot{aspect-ratio:var(--ar,4/3)}
+.cap{font:400 18px/1.6 'Pretendard',sans-serif;color:var(--sub);text-align:center;margin-top:16px}
+
+.t-steps{padding:40px 45px 80px}
+.steps{display:flex;justify-content:center;align-items:flex-start}
+.step{width:var(--D);flex:none;display:flex;flex-direction:column;align-items:center}
+.step-c{width:var(--D);height:var(--D);border-radius:50%;border:2.5px solid var(--line);box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding:14px;background:var(--sbg)}
+.step-name{font:700 calc(var(--D) * .2)/1.25 'Pretendard',sans-serif;text-align:center;letter-spacing:-.02em}
+.step-desc{width:calc(var(--D) + 60px);margin-top:30px;font:400 20px/1.55 'Pretendard',sans-serif;color:color-mix(in srgb,var(--ink) 52%,var(--sbg));text-align:center}
+.step-line{flex:1 1 0;min-width:24px;height:2.5px;background:var(--line);margin-top:calc(var(--D) / 2 - 1.25px)}
+.steps.v-yellow .step-c,.steps.v-last .step.last .step-c{background:var(--acc);color:var(--chip-fg)}
+
+.t-grid{padding:28px 60px 72px}
+.t-grid.full{padding-left:20px;padding-right:20px}
+.gt-wrap{position:relative}
+.gt{width:100%;border-collapse:collapse;table-layout:fixed;font-family:'Pretendard',sans-serif;line-height:1.5;color:inherit}
+.gt td{border:var(--bw) solid var(--bc);padding:var(--cp) calc(var(--cp) + 6px);vertical-align:middle;text-align:center;overflow-wrap:break-word;word-break:keep-all}
+.gt .gcell{min-height:1.5em}
+
+.t-apply{padding:100px 80px 90px;text-align:center;display:flex;flex-direction:column;align-items:center}
+.t-apply .eyebrow{justify-content:center}
+.ap-title{font:700 56px/1.25 'Pretendard',sans-serif;letter-spacing:-.02em;margin-top:20px}
+.ap-body{font:400 24px/1.7 'Pretendard',sans-serif;color:var(--sub);margin-top:26px}
+.ap-contact{display:inline-flex;align-items:center;gap:20px;border:2px solid var(--line);border-radius:999px;padding:20px 44px;margin-top:48px}
+.ap-label{font:500 22px/1 'Pretendard',sans-serif;color:var(--sub)}
+.ap-phone{font:700 40px/1 'Pretendard',sans-serif;color:var(--acc);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.ap-addr{font:400 20px/1.6 'Pretendard',sans-serif;color:var(--sub);margin-top:24px}
+.ap-logo{margin-top:72px}
+.ap-logo .img-slot{width:180px;height:26.2px}
+
+.t-spacer{height:80px}
+
+.free-layer{position:absolute;inset:0;pointer-events:none}
+.free-item{position:absolute;pointer-events:auto;box-sizing:border-box}
+.free-item .ft{white-space:pre-wrap;word-break:keep-all;overflow-wrap:break-word;outline:none;font:700 28px/1.4 'Pretendard',sans-serif}
+.free-item.img .img-slot{width:100%;height:100%}
+
+/* ---------- 편집 표시(내보내기에는 없음) ---------- */
+.page.edit{--inv:1}
+.page.edit .sec{cursor:default}
+.page.edit .sec:hover{box-shadow:inset 0 0 0 calc(1px*var(--inv)) rgba(47,107,255,.45)}
+.page.edit .sec.is-cur{box-shadow:inset 0 0 0 calc(1.5px*var(--inv)) rgba(47,107,255,.55)}
+.page.edit .sec.is-sel{box-shadow:inset 0 0 0 calc(3px*var(--inv)) #2f6bff}
+.page.edit .f{cursor:text}
+.page.edit .f:not(.job-count){border-radius:3px}
+.page.edit .f:hover{box-shadow:0 0 0 calc(1px*var(--inv)) rgba(47,107,255,.6)}
+.page.edit .f.is-sel,.page.edit .f:focus{box-shadow:0 0 0 calc(2px*var(--inv)) #2f6bff;background:rgba(47,107,255,.06)}
+.page.edit .f:empty::before{content:attr(data-ph);opacity:.38}
+.page.edit .img-slot{cursor:pointer}
+.page.edit .img-slot:hover{box-shadow:0 0 0 calc(2px*var(--inv)) rgba(47,107,255,.7)}
+.page.edit .img-slot.is-sel{box-shadow:0 0 0 calc(3px*var(--inv)) #2f6bff}
+.page.edit .img-slot.empty{display:flex;align-items:center;justify-content:center}
+.ph{font:600 calc(15px*var(--inv))/1.3 'Pretendard',sans-serif;color:#7a776f;text-align:center;padding:6px}
+.bg-black .ph{color:#9a9a9a}
+.page.edit .free-item:hover{box-shadow:0 0 0 calc(1px*var(--inv)) rgba(47,107,255,.7)}
+.page.edit .free-item.is-sel{box-shadow:0 0 0 calc(2px*var(--inv)) #2f6bff}
+.page.edit .free-item.img{cursor:move}
+.page.edit .free-item.txt:not(.is-sel){cursor:move}
+.grip,.handle,.sec-tools,.sec-tag,.add-btn{display:none}
+.page.edit .free-item.is-sel .grip{display:flex;position:absolute;left:0;top:0;transform:translate(0,-100%) scale(var(--inv));transform-origin:0 100%;
+  background:#2f6bff;color:#fff;font:600 12px/1 'Pretendard',sans-serif;padding:5px 8px;border-radius:6px 6px 0 0;cursor:move;white-space:nowrap;gap:4px}
+.page.edit .free-item.is-sel .handle{display:block;position:absolute;right:0;bottom:0;width:14px;height:14px;background:#fff;border:2px solid #2f6bff;border-radius:3px;
+  transform:translate(50%,50%) scale(var(--inv));cursor:nwse-resize}
+.page.edit .free-item.txt.is-sel .handle{cursor:ew-resize}
+.page.edit .sec.is-cur .sec-tools{display:flex;position:absolute;right:8px;top:8px;transform:scale(var(--inv));transform-origin:100% 0;z-index:5;gap:4px}
+.sec-tools button{border:0;background:#2f6bff;color:#fff;font:600 12.5px/1 'Pretendard',sans-serif;padding:7px 10px;border-radius:7px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.sec-tools button:hover{background:#1f55e0}
+.sec-tools button.del{background:#fff;color:#cf3426}
+.page.edit .sec:hover .sec-tag,.page.edit .sec.is-cur .sec-tag{display:block;position:absolute;left:8px;top:8px;transform:scale(var(--inv));transform-origin:0 0;z-index:5;
+  background:#2f6bff;color:#fff;font:600 12px/1 'Pretendard',sans-serif;padding:6px 9px;border-radius:6px;pointer-events:none}
+.page.edit .sec:hover>.add-btn,.page.edit .sec.is-cur>.add-btn{display:block;position:absolute;left:50%;bottom:0;transform:translate(-50%,50%) scale(var(--inv));z-index:6;
+  border:0;background:#2f6bff;color:#fff;font:700 12.5px/1 'Pretendard',sans-serif;padding:8px 14px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25);white-space:nowrap}
+.page.edit .t-spacer{background-image:repeating-linear-gradient(45deg,transparent 0 10px,rgba(0,0,0,.04) 10px 11px)}
+.page.edit .gt td{cursor:text}
+.page.edit .gt .f:hover,.page.edit .gt .f:focus,.page.edit .gt .f.is-sel{box-shadow:none;background:transparent}
+.page.edit .gt td.csel{box-shadow:inset 0 0 0 9999px rgba(47,107,255,.14);outline:calc(2px*var(--inv)) solid #2f6bff;outline-offset:calc(-1px*var(--inv))}
+.page.edit .gt.dragging,.page.edit .gt.dragging *{user-select:none;-webkit-user-select:none}
+.colrs{display:none}
+.page.edit .colrs{display:block;position:absolute;top:0;bottom:0;width:calc(14px*var(--inv));transform:translateX(-50%);cursor:col-resize;z-index:3}
+.page.edit .colrs:hover,.page.edit .colrs.on{background:linear-gradient(#2f6bff,#2f6bff) center/calc(3px*var(--inv)) 100% no-repeat}
+.page-empty{padding:120px 40px;text-align:center;color:#8a877f;font:500 24px/1.6 'Pretendard',sans-serif}
+
+#exportRoot{position:fixed;left:-20000px;top:0;width:1000px;pointer-events:none}
+
+@media (max-width: 860px){
+  .app{height:auto;min-height:100%}
+  .work{grid-template-columns:minmax(0,1fr)}
+  .stage{padding:16px max(16px,env(safe-area-inset-right,0px)) 46vh max(16px,env(safe-area-inset-left,0px));overflow:visible}
+  .panel{position:fixed;left:0;right:0;bottom:0;max-height:42vh;border-left:0;border-top:1px solid var(--c-line);z-index:20;box-shadow:0 -8px 30px rgba(0,0,0,.12);
+    padding:14px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+  .brand span{display:none}
+  .title-in{order:5;flex-basis:100%}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="brand"><i></i><span>헤세드 채용공고</span></div>
+    <button class="btn" id="btnList" type="button">공고 목록</button>
+    <input class="title-in" id="postTitle" aria-label="공고 이름" placeholder="공고 이름 (예: 홀 직원 채용 11월)">
+    <span class="save" id="saveState"></span>
+    <div class="bar-r">
+      <button class="btn icon" id="btnUndo" type="button" title="되돌리기 (Ctrl+Z)" aria-label="되돌리기" disabled>↶</button>
+      <button class="btn icon" id="btnRedo" type="button" title="다시 하기 (Ctrl+Shift+Z)" aria-label="다시 하기" disabled>↷</button>
+      <button class="btn primary" id="btnExport" type="button">PNG로 저장</button>
+    </div>
+  </header>
+  <div class="banner" id="banner" hidden></div>
+  <main class="work">
+    <div class="stage" id="stage">
+      <div class="pagewrap" id="pagewrap"><div class="page edit" id="page"></div></div>
+      <button class="add-end" id="addEnd" type="button">＋ 맨 아래에 섹션 추가</button>
+    </div>
+    <aside class="panel" id="panel" aria-label="속성"></aside>
+  </main>
+</div>
+<div class="modal" id="modal" hidden></div>
+<input type="file" id="filePick" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden>
+<div id="exportRoot" aria-hidden="true"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(() => {
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-5);
+const clone = o => JSON.parse(JSON.stringify(o));
+const LS_KEY = 'hesed-recruit.local.v1';
+const PT = (() => { const d = document.createElement('div'); d.contentEditable = 'plaintext-only'; return d.contentEditable === 'plaintext-only'; })();
+
+const S = {
+  db: null, user: null, assets: null, downloads: null, uid: null, holder: null,
+  posts: [], names: {}, postId: null, post: null, readOnly: false, noWrite: false, lockTimer: null, gotFirst: false, touched: false,
+  sel: null, scale: 1, hist: [], fut: [], preEdit: null, typed: false, sliderSnap: false, dbimg: {}, fontCSS: null, saving: false, again: false, saveT: null,
+};
+
+/* ---------------- 섹션 정의 ---------------- */
+const TYPES = {
+  hero:   {name: '메인 비주얼', desc: '검정 배경 · 로고 · 제목 · 사진 4장', bg: 'black'},
+  intro:  {name: '인사말', desc: '명조 제목과 브랜드 소개', bg: 'white'},
+  pill:   {name: '섹션 제목', desc: '둥근 테두리 제목 (모집부문, 근무조건 등)', bg: 'white'},
+  jobs:   {name: '모집 직무 카드', desc: '직무 이름 · 인원 · 하는 일', bg: 'white', list: 'items'},
+  table:  {name: '조건 표', desc: '근무시간 · 급여처럼 항목과 내용', bg: 'white', list: 'rows'},
+  grid:   {name: '칸 표', desc: '칸을 늘리고 합치고 색칠하는 표', bg: 'white'},
+  steps:  {name: '단계 흐름', desc: '인턴 → 정직원 → 매니저처럼 이어지는 단계', bg: 'white', list: 'items'},
+  badges: {name: '장점 동그라미', desc: '초보 환영, 식사 제공 같은 짧은 장점', bg: 'white', list: 'items'},
+  text:   {name: '글 문단', desc: '작은 제목과 설명 글', bg: 'white'},
+  photo:  {name: '사진', desc: '사진 1~3장을 가로로 배치', bg: 'white'},
+  apply:  {name: '지원 방법', desc: '검정 배경 마무리 · 연락처 · 주소', bg: 'black'},
+  spacer: {name: '여백', desc: '섹션 사이 빈 공간', bg: 'white'},
+};
+const IMG = p => ({src: p ? 'file:' + p : '', zoom: 1, px: 50, py: 50, fit: 'cover'});
+const NEW_ITEM = {
+  jobs: () => ({name: '새 직무', count: '0명', desc: '· 하는 일을 입력하세요'}),
+  table: () => ({k: '항목', v: '내용을 입력하세요'}),
+  badges: () => '장점',
+  steps: () => ({name: '단계', desc: ''}),
+};
+function makeSection(type) {
+  const s = {id: uid(), type, bg: null, pt: null, pb: null, st: {}, free: [], d: {}};
+  switch (type) {
+    case 'hero': s.d = {logo: IMG('img/logo-white.svg'), eyebrow: 'RECRUIT', title: '카츠헤세드\n직원 채용', photos: [1, 2, 3, 4].map(i => IMG(`img/hero-${i}.jpg`))}; break;
+    case 'intro': s.d = {headline: '함께 근무할 직원을 모집합니다.', logo: IMG('img/logo-black.svg'),
+      body: '‘카츠 헤세드’는 ‘카츠’와 ‘헤세드’의 합성어입니다.\n‘헤세드’는 일반적으로 은혜, 자비라는 의미를 가지지만 그 속에는 사랑이라는 의미를 담고 있습니다.\n음식에 사랑과 정성을 담아 헤세드를 찾아주시는 손님들께 사랑을 전하고자는 마음이 담겨 있습니다.'}; break;
+    case 'pill': s.d = {text: '섹션 제목', variant: 'line'}; break;
+    case 'jobs': s.d = {items: [
+      {name: '홀 서빙', count: '0명', desc: '· 주문 응대와 서빙\n· 테이블 정리와 매장 청결 관리\n· 포장 주문 확인'},
+      {name: '주방 보조', count: '0명', desc: '· 돈카츠 튀김과 조리 보조\n· 재료 손질과 소스 준비\n· 주방 위생 관리'}]}; break;
+    case 'table': s.d = {rows: [
+      {k: '근무형태', v: '정규직 · 아르바이트'},
+      {k: '근무시간', v: '11:00 ~ 21:00 (시간 협의 가능)'},
+      {k: '근무요일', v: '주 5일 (요일 협의)'},
+      {k: '급여', v: '면접 후 협의 · 경력자 우대'},
+      {k: '근무지', v: '매장 주소를 입력하세요'}]}; break;
+    case 'badges': s.d = {title: '이런 점이 좋아요', items: ['초보 환영', '직원 식사\n제공', '경력자 우대', '장기 근무\n우대']}; break;
+    case 'text': s.d = {title: '작은 제목을 입력하세요', body: '설명 글을 입력하세요.\n여러 줄로 쓸 수 있어요.'}; break;
+    case 'photo': s.d = {n: 2, ratio: '4/3', full: false, photos: [IMG(), IMG(), IMG()], caption: ''}; break;
+    case 'apply': s.d = {eyebrow: 'HOW TO APPLY', title: '지원방법', body: '전화 또는 문자로 이름 · 나이 · 지원 부문을 남겨주세요.\n확인 후 개별로 연락드립니다.',
+      label: '채용 담당', phone: '010-0000-0000', address: '매장 주소를 입력하세요', logo: IMG('img/logo-white.svg')}; break;
+    case 'spacer': s.d = {h: 80}; break;
+    case 'grid': {
+      const H = {bg: '#f3f2ee', b: true};
+      s.d = {cols: [26, 47, 27], rh: [90, 90, 90, 90], bw: 2, bc: '#111111', fs: 24, pad: 16, full: false, rows: [
+        [{t: '구분', ...H}, {t: '하는 일', ...H}, {t: '인원', ...H}],
+        [{t: '홀'}, {t: '주문 응대 · 서빙 · 매장 정리'}, {t: '0명'}],
+        [{t: '주방'}, {t: '조리 보조 · 재료 손질'}, {t: '0명'}],
+        [{t: '공통'}, {t: '근무 전 위생 교육 진행'}, {t: '-'}]]};
+      break;
+    }
+    case 'steps': s.d = {variant: 'line', items: [
+      {name: '인턴', desc: '수습기간 3개월'}, {name: '정직원', desc: '수습 후 정규 전환'},
+      {name: '매니저', desc: '매장 운영 · 직원 관리'}, {name: '점장', desc: '매장 총괄 책임'}]}; break;
+  }
+  return s;
+}
+
+/* ---------------- 칸 표: 칸 범위 · 합치기 · 줄/열 ---------------- */
+// 칸 하나는 {t, bg, color, b, size, al, va, rs, cs}. 합쳐져 가려진 칸은 {t:'', m:true}.
+const normRect = (a, b) => ({r0: Math.min(a.r, b.r), r1: Math.max(a.r, b.r), c0: Math.min(a.c, b.c), c1: Math.max(a.c, b.c)});
+function anchorOf(rows, r, c) {
+  for (let rr = r; rr >= 0; rr--) for (let cc = c; cc >= 0; cc--) {
+    const x = rows[rr][cc];
+    if (!x.m && rr + (x.rs || 1) > r && cc + (x.cs || 1) > c) return [rr, cc];
+  }
+  return [r, c];
+}
+function expandRect(rows, R) {
+  let {r0, r1, c0, c1} = R, grew = true;
+  while (grew) {
+    grew = false;
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+      const [ar, ac] = anchorOf(rows, r, c), x = rows[ar][ac];
+      const er = ar + (x.rs || 1) - 1, ec = ac + (x.cs || 1) - 1;
+      if (ar < r0) { r0 = ar; grew = true; } if (ac < c0) { c0 = ac; grew = true; }
+      if (er > r1) { r1 = er; grew = true; } if (ec > c1) { c1 = ec; grew = true; }
+    }
+  }
+  return {r0, r1, c0, c1};
+}
+function forCells(d, R, fn) { for (let r = R.r0; r <= R.r1; r++) for (let c = R.c0; c <= R.c1; c++) { const x = d.rows[r][c]; if (!x.m) fn(x, r, c); } }
+const cellStyle = x => { const {t, rs, cs, m, ...st} = x; return clone(st); };
+function gMerge(d, R) {
+  const a = d.rows[R.r0][R.c0], texts = [];
+  forCells(d, R, x => { if (String(x.t || '').trim()) texts.push(x.t); });
+  for (let r = R.r0; r <= R.r1; r++) for (let c = R.c0; c <= R.c1; c++) if (r !== R.r0 || c !== R.c0) d.rows[r][c] = {t: '', m: true};
+  a.t = texts.join('\n'); a.rs = R.r1 - R.r0 + 1; a.cs = R.c1 - R.c0 + 1;
+}
+function gSplit(d, R) {
+  forCells(d, R, (x, r, c) => {
+    if ((x.rs || 1) === 1 && (x.cs || 1) === 1) return;
+    for (let rr = r; rr < r + (x.rs || 1); rr++) for (let cc = c; cc < c + (x.cs || 1); cc++) if (rr !== r || cc !== c) d.rows[rr][cc] = {...cellStyle(x), t: ''};
+    delete x.rs; delete x.cs;
+  });
+}
+function gInsRow(d, at, src) {
+  const row = d.cols.map((_, c) => { const s = d.rows[src]?.[c]; return s && !s.m ? {...cellStyle(s), t: ''} : {t: ''}; });
+  row.forEach(x => { delete x.rs; delete x.cs; });
+  d.rows.forEach((rw, r) => rw.forEach((x, c) => {
+    if (!x.m && (x.rs || 1) > 1 && r < at && r + x.rs > at) { x.rs++; for (let cc = c; cc < c + (x.cs || 1); cc++) row[cc] = {t: '', m: true}; }
+  }));
+  d.rows.splice(at, 0, row); d.rh.splice(at, 0, d.rh[src] ?? 90);
+}
+function gDelRow(d, k) {
+  d.rows.forEach((rw, r) => rw.forEach((x, c) => {
+    if (x.m || (x.rs || 1) < 2) return;
+    if (r < k && r + x.rs > k) x.rs--;
+    else if (r === k) d.rows[k + 1][c] = {...x, rs: x.rs - 1};
+  }));
+  d.rows.splice(k, 1); d.rh.splice(k, 1);
+}
+function gInsCol(d, at, src) {
+  const col = d.rows.map(rw => { const s = rw[src]; const n = s && !s.m ? {...cellStyle(s), t: ''} : {t: ''}; delete n.rs; delete n.cs; return n; });
+  d.rows.forEach((rw, r) => rw.forEach((x, c) => {
+    if (!x.m && (x.cs || 1) > 1 && c < at && c + x.cs > at) { x.cs++; for (let rr = r; rr < r + (x.rs || 1); rr++) col[rr] = {t: '', m: true}; }
+  }));
+  d.rows.forEach((rw, r) => rw.splice(at, 0, col[r]));
+  const w = d.cols[src]; d.cols[src] = +(w / 2).toFixed(2); d.cols.splice(at, 0, +(w / 2).toFixed(2));
+}
+function gDelCol(d, k) {
+  d.rows.forEach((rw, r) => rw.forEach((x, c) => {
+    if (x.m || (x.cs || 1) < 2) return;
+    if (c < k && c + x.cs > k) x.cs--;
+    else if (c === k) rw[k + 1] = {...x, cs: x.cs - 1};
+  }));
+  d.rows.forEach(rw => rw.splice(k, 1));
+  const w = d.cols.splice(k, 1)[0]; d.cols[Math.max(0, k - 1)] += w;
+}
+function templateDoc() {
+  const p1 = makeSection('pill'); p1.d.text = '모집부문';
+  const p2 = makeSection('pill'); p2.d.text = '근무조건';
+  return {sections: [makeSection('hero'), makeSection('intro'), p1, makeSection('jobs'), makeSection('badges'), p2, makeSection('table'), makeSection('apply')]};
+}
+const newPostData = () => ({title: '카츠헤세드 직원 채용', doc: templateDoc()});
+
+/* ---------------- 경로 유틸 ---------------- */
+const getP = (o, p) => p.split('.').reduce((a, k) => a == null ? a : a[k], o);
+function setP(o, p, v) { const ks = p.split('.'); const last = ks.pop(); const t = ks.reduce((a, k) => a[k], o); t[last] = v; }
+const styleKey = p => p.replace(/\.\d+(?=\.|$)/g, '.*');
+const findSec = id => S.post.doc.sections.find(s => s.id === id);
+const secBg = s => s.bg || TYPES[s.type].bg;
+
+/* ---------------- 렌더링 ---------------- */
+function styleCSS(o) {
+  if (!o) return '';
+  let c = '';
+  if (o.size) c += `font-size:${o.size}px;`;
+  if (o.weight) c += `font-weight:${o.weight};`;
+  if (o.font) c += `font-family:${o.font === 'serif' ? "'ChosunNm',serif" : "'Pretendard',sans-serif"};`;
+  if (o.color) c += `color:${o.color};`;
+  if (o.align) c += `text-align:${o.align};`;
+  if (o.lh) c += `line-height:${o.lh};`;
+  return c;
+}
+function imgURL(src) {
+  if (!src) return '';
+  if (src.startsWith('file:')) return src.slice(5);
+  if (src.startsWith('asset:')) return '/_blob/' + src.slice(6);
+  if (src.startsWith('dbimg:')) return S.dbimg[src.slice(6)] || '';
+  return src;
+}
+function R(sec, E) {
+  const field = (path, cls = '', ph = '내용 입력', single = false) => {
+    const v = getP(sec.d, path) ?? '';
+    if (!E && !String(v).trim()) return '';
+    const ed = E ? ` contenteditable="${PT ? 'plaintext-only' : 'true'}" spellcheck="false"` : '';
+    return `<div class="f ${cls}" data-f="${path}" data-ph="${esc(ph)}"${single ? ' data-single' : ''}${ed} style="${styleCSS(sec.st[styleKey(path)])}">${esc(v)}</div>`;
+  };
+  const img = (path, cls = '', ph = '사진 넣기') => {
+    const im = getP(sec.d, path) || {};
+    const url = imgURL(im.src);
+    const fit = im.fit === 'contain' ? ' fit-contain' : '';
+    let inner = '';
+    if (im.src) {
+      const st = `object-position:${im.px ?? 50}% ${im.py ?? 50}%;transform:scale(${im.zoom || 1});transform-origin:${im.px ?? 50}% ${im.py ?? 50}%`;
+      const db = im.src.startsWith('dbimg:') ? ` data-dbimg="${im.src.slice(6)}"` : '';
+      inner = `<img alt="" draggable="false"${db} src="${esc(url)}" style="${st}">`;
+    } else if (E) inner = `<span class="ph">${ph}<br>클릭해서 넣기</span>`;
+    return `<div class="img-slot ${cls}${fit}${im.src ? '' : ' empty'}" data-img="${path}">${inner}</div>`;
+  };
+  const d = sec.d;
+  switch (sec.type) {
+    case 'hero': return `
+      <div class="hero-left">${img('logo', 'hero-logo logo', '로고')}
+        <div class="hero-copy">${E || d.eyebrow ? `<div class="eyebrow"><i class="dia"></i>${field('eyebrow', '', 'RECRUIT', true)}</div>` : ''}
+        ${field('title', 'hero-title', '제목')}</div></div>
+      <div class="hero-grid">${d.photos.map((_, i) => img('photos.' + i)).join('')}</div>`;
+    case 'intro': return `${field('headline', 'intro-head serif', '인사 문구', true)}
+      <div class="intro-row"><div class="intro-logo">${img('logo', 'logo', '로고')}</div><div class="intro-rule"></div>${field('body', 'intro-body serif', '소개 글')}</div>`;
+    case 'pill': return `<div class="pill-wrap"><div class="pill v-${d.variant || 'line'}">${field('text', 'pill-text', '제목', true)}</div></div>`;
+    case 'jobs': {
+      const n = Math.min(Math.max(d.items.length, 1), 3);
+      return `<div class="jobs" style="grid-template-columns:repeat(${n},minmax(0,1fr))">${d.items.map((_, i) => `
+        <div class="job"><div class="job-top">${field(`items.${i}.name`, 'job-name', '직무 이름', true)}${field(`items.${i}.count`, 'job-count', '인원', true)}</div>
+        ${field(`items.${i}.desc`, 'job-desc', '하는 일')}</div>`).join('')}</div>`;
+    }
+    case 'table': return `<div class="tbl">${d.rows.map((_, i) => `
+      <div class="tr"><div class="th"><i class="dia"></i>${field(`rows.${i}.k`, '', '항목', true)}</div>${field(`rows.${i}.v`, 'td', '내용')}</div>`).join('')}</div>`;
+    case 'badges': return `${field('title', 'badges-title serif', '제목 (비워두면 숨겨져요)', true)}
+      <div class="badges">${d.items.map((_, i) => `<div class="badge">${field('items.' + i, '', '장점')}</div>`).join('')}</div>`;
+    case 'text': return `${field('title', 'tx-title serif', '작은 제목')}${field('body', 'tx-body', '설명 글')}`;
+    case 'photo': {
+      const n = d.n || 1;
+      return `<div class="photos" style="grid-template-columns:repeat(${n},minmax(0,1fr));--ar:${d.ratio || '4/3'}">${d.photos.slice(0, n).map((_, i) => img('photos.' + i)).join('')}</div>
+        ${field('caption', 'cap', '사진 설명 (비워두면 숨겨져요)')}`;
+    }
+    case 'apply': return `${E || d.eyebrow ? `<div class="eyebrow"><i class="dia"></i>${field('eyebrow', '', 'HOW TO APPLY', true)}</div>` : ''}
+      ${field('title', 'ap-title', '제목', true)}${field('body', 'ap-body', '안내 글')}
+      <div class="ap-contact">${field('label', 'ap-label', '담당', true)}${field('phone', 'ap-phone', '전화번호', true)}</div>
+      ${field('address', 'ap-addr', '주소')}<div class="ap-logo">${img('logo', 'logo', '로고')}</div>`;
+    case 'spacer': return '';
+    case 'grid': {
+      const td = (x, r, c) => {
+        if (x.m) return '';
+        const st = `${x.bg ? `background:${x.bg};` : ''}${x.color ? `color:${x.color};` : ''}${x.b ? 'font-weight:700;' : ''}${x.size ? `font-size:${x.size}px;` : ''}${x.al ? `text-align:${x.al};` : ''}${x.va ? `vertical-align:${x.va};` : ''}`;
+        return `<td data-r="${r}" data-c="${c}"${(x.rs || 1) > 1 ? ` rowspan="${x.rs}"` : ''}${(x.cs || 1) > 1 ? ` colspan="${x.cs}"` : ''} style="${st}">${field(`rows.${r}.${c}.t`, 'gcell', '')}</td>`;
+      };
+      let cum = 0;
+      const handles = E ? d.cols.slice(0, -1).map((w, i) => { cum += w; return `<div class="colrs" data-i="${i}" style="left:${cum}%" title="끌어서 열 너비 조절"></div>`; }).join('') : '';
+      return `<div class="gt-wrap"><table class="gt" style="--bw:${d.bw}px;--bc:${d.bc};--cp:${d.pad}px;font-size:${d.fs}px">
+        <colgroup>${d.cols.map(w => `<col style="width:${w}%">`).join('')}</colgroup>
+        <tbody>${d.rows.map((row, r) => `<tr style="height:${d.rh[r]}px">${row.map((x, c) => td(x, r, c)).join('')}</tr>`).join('')}</tbody></table>${handles}</div>`;
+    }
+    case 'steps': {
+      // 단계 수에 맞춰 동그라미 지름을 정한다 (안쪽 폭 910px, 연결선 최소 48px)
+      const n = d.items.length, D = Math.round(Math.min(170, (910 - (n - 1) * 48) / n));
+      return `<div class="steps v-${d.variant || 'line'}" style="--D:${D}px">${d.items.map((_, i) => `${i ? '<div class="step-line"></div>' : ''}
+        <div class="step${i === n - 1 ? ' last' : ''}"><div class="step-c">${field(`items.${i}.name`, 'step-name', '단계')}</div>${field(`items.${i}.desc`, 'step-desc', '설명 (비워두면 숨겨져요)')}</div>`).join('')}</div>`;
+    }
+  }
+  return '';
+}
+function freeHTML(sec, E) {
+  if (!sec.free.length) return '';
+  return `<div class="free-layer">${sec.free.map(it => {
+    const pos = `left:${it.x}px;top:${it.y}px;width:${it.w}px;${it.kind === 'image' ? `height:${it.h}px;` : ''}`;
+    const tools = E ? `<span class="grip">⠿ 끌어서 이동</span><span class="handle"></span>` : '';
+    if (it.kind === 'image') {
+      const url = imgURL(it.src); const db = it.src?.startsWith('dbimg:') ? ` data-dbimg="${it.src.slice(6)}"` : '';
+      return `<div class="free-item img" data-free="${it.id}" style="${pos}"><div class="img-slot" style="border-radius:${it.radius || 0}px;background:transparent"><img alt="" draggable="false"${db} src="${esc(url)}"></div>${tools}</div>`;
+    }
+    return `<div class="free-item txt" data-free="${it.id}" style="${pos}"><div class="ft" data-ph="글자 입력" style="${styleCSS(it.style)}">${esc(it.text)}</div>${tools}</div>`;
+  }).join('')}</div>`;
+}
+function secHTML(sec, i, E) {
+  const pad = sec.type === 'hero' ? '' : `${sec.pt != null ? `padding-top:${sec.pt}px;` : ''}${sec.pb != null ? `padding-bottom:${sec.pb}px;` : ''}`;
+  const extra = sec.type === 'spacer' ? `height:${sec.d.h}px;` : '';
+  const cls = (sec.type === 'photo' || sec.type === 'grid') && sec.d.full ? ' full' : '';
+  const chrome = E ? `<div class="sec-tag">${TYPES[sec.type].name}</div>
+    <div class="sec-tools"><button type="button" data-tool="up" title="위로">↑</button><button type="button" data-tool="down" title="아래로">↓</button><button type="button" data-tool="dup">복제</button><button type="button" class="del" data-tool="del">삭제</button></div>
+    <button type="button" class="add-btn" data-add="${i + 1}">＋ 여기에 섹션 추가</button>` : '';
+  return `<section class="sec t-${sec.type} bg-${secBg(sec)}${cls}" data-sid="${sec.id}" style="${pad}${extra}">${R(sec, E)}${freeHTML(sec, E)}${chrome}</section>`;
+}
+
+function renderPage() {
+  const page = $('#page');
+  const E = !S.readOnly;
+  page.classList.toggle('edit', E);
+  const secs = S.post.doc.sections;
+  page.innerHTML = secs.length ? secs.map((s, i) => secHTML(s, i, E)).join('')
+    : `<div class="page-empty">섹션이 없어요.<br>아래 ‘맨 아래에 섹션 추가’를 눌러 시작하세요.</div>`;
+  $('#addEnd').hidden = !E;
+  hydrateImages(page);
+  fitFree(page);
+  applySel(false);
+  fitStage();
+}
+function fitFree(root) {
+  $$('.sec', root).forEach(el => {
+    el.style.minHeight = '';
+    const items = $$('.free-item', el);
+    if (!items.length) return;
+    const bottom = Math.max(...items.map(it => it.offsetTop + it.offsetHeight));
+    if (bottom + 20 > el.offsetHeight) el.style.minHeight = (bottom + 20) + 'px';
+  });
+}
+function hydrateImages(root) {
+  return Promise.all($$('img[data-dbimg]', root).map(async im => {
+    const id = im.dataset.dbimg;
+    if (!S.dbimg[id] && S.db) {
+      try { const d = await S.db.doc('images/' + id).get(); if (d.exists) S.dbimg[id] = d.data().data; } catch (e) {}
+    }
+    if (S.dbimg[id] && im.src !== S.dbimg[id]) im.src = S.dbimg[id];
+  }));
+}
+function fitStage() {
+  const stage = $('#stage'), wrap = $('#pagewrap'), page = $('#page');
+  const cs = getComputedStyle(stage);
+  const avail = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  S.scale = Math.min(1, avail / 1000);
+  page.style.transform = `scale(${S.scale})`;
+  page.style.setProperty('--inv', (1 / S.scale).toFixed(3));
+  wrap.style.width = (1000 * S.scale) + 'px';
+  wrap.style.height = (page.offsetHeight * S.scale) + 'px';
+}
+new ResizeObserver(() => fitStage()).observe($('#stage'));
+new ResizeObserver(() => fitStage()).observe($('#page'));
+
+/* ---------------- 선택 ---------------- */
+function select(sel) { S.sel = sel; applySel(true); }
+function applySel(panel = true) {
+  const page = $('#page');
+  $$('.is-sel,.is-cur,.csel', page).forEach(el => el.classList.remove('is-sel', 'is-cur', 'csel'));
+  $$('.ft[contenteditable]', page).forEach(el => el.removeAttribute('contenteditable'));
+  const s = S.sel;
+  if (s && !findSec(s.sid)) S.sel = null;
+  if (S.sel) {
+    const secEl = page.querySelector(`.sec[data-sid="${s.sid}"]`);
+    if (secEl) {
+      secEl.classList.add('is-cur');
+      if (s.kind === 'sec') secEl.classList.add('is-sel');
+      if (s.kind === 'field') secEl.querySelector(`.f[data-f="${s.path}"]`)?.classList.add('is-sel');
+      if (s.kind === 'img') secEl.querySelector(`.img-slot[data-img="${s.path}"]`)?.classList.add('is-sel');
+      if (s.kind === 'cells') $$('.gt td', secEl).forEach(td => { const r = +td.dataset.r, c = +td.dataset.c; if (r >= s.r0 && r <= s.r1 && c >= s.c0 && c <= s.c1) td.classList.add('csel'); });
+      if (s.kind === 'free') {
+        const it = secEl.querySelector(`.free-item[data-free="${s.fid}"]`);
+        if (it) { it.classList.add('is-sel'); const ft = it.querySelector('.ft'); if (ft && !S.readOnly) { ft.setAttribute('contenteditable', PT ? 'plaintext-only' : 'true'); ft.spellcheck = false; } }
+      }
+    }
+  }
+  if (panel) renderPanel();
+}
+
+/* ---------------- 기록 / 되돌리기 ---------------- */
+const snap = () => JSON.stringify({title: S.post.title, doc: S.post.doc});
+function pushHist(s = snap()) { S.hist.push(s); if (S.hist.length > 80) S.hist.shift(); S.fut = []; updUndo(); }
+function updUndo() { $('#btnUndo').disabled = !S.hist.length || S.readOnly; $('#btnRedo').disabled = !S.fut.length || S.readOnly; }
+function restore(str) { const o = JSON.parse(str); S.post.title = o.title; S.post.doc = o.doc; $('#postTitle').value = o.title || ''; renderPage(); renderPanel(); changed(); updUndo(); }
+function undo() { if (!S.hist.length || S.readOnly) return; document.activeElement?.blur?.(); S.fut.push(snap()); restore(S.hist.pop()); }
+function redo() { if (!S.fut.length || S.readOnly) return; document.activeElement?.blur?.(); S.hist.push(snap()); restore(S.fut.pop()); }
+function commit(fn, {page = true, panel = true} = {}) {
+  if (S.readOnly) return;
+  pushHist(); fn(); changed();
+  if (page) renderPage(); if (panel) renderPanel();
+}
+
+/* ---------------- 저장 ---------------- */
+function setSave(t, err = false) { const el = $('#saveState'); el.textContent = t; el.classList.toggle('err', err); }
+function changed() { if (S.readOnly) return; S.touched = true; setSave('저장 대기…'); clearTimeout(S.saveT); S.saveT = setTimeout(saveNow, 900); }
+const hm = t => new Date(t).toLocaleTimeString('ko-KR', {hour: 'numeric', minute: '2-digit'});
+async function saveNow() {
+  clearTimeout(S.saveT); S.saveT = null;
+  if (S.readOnly) return;
+  if (S.saving) { S.again = true; return; }
+  S.saving = true; setSave('저장 중…');
+  try { await persist(); setSave(S.db ? `저장됨 · ${hm(Date.now())}` : `이 브라우저에 저장됨 · ${hm(Date.now())}`); }
+  catch (e) { setSave(saveErrText(e), true); }
+  S.saving = false;
+  if (S.again) { S.again = false; saveNow(); }
+}
+function saveErrText(e) {
+  const c = e?.code;
+  if (c === 'invalid_argument') return '저장 실패: 편집 권한이 없거나 내용이 너무 커요';
+  if (c === 'quota_exceeded') return '저장 공간이 가득 찼어요. 안 쓰는 공고를 지워주세요';
+  if (c === 'resource_exhausted') return '잠시 후 다시 저장할게요';
+  return '저장 실패: 잠시 후 다시 시도해주세요';
+}
+async function persist() {
+  const now = Date.now();
+  const body = {title: (S.post.title || '').trim() || '제목 없는 공고', doc: S.post.doc, createdAt: S.post.createdAt || now, updatedAt: now, updatedBy: S.uid || null};
+  if (!S.db) { try { localStorage.setItem(LS_KEY, JSON.stringify(body)); } catch (e) { throw {code: 'local'}; } return; }
+  if (!S.postId) {
+    S.postId = uid(); S.post.createdAt = now;
+    await takeLock(S.postId);
+  }
+  await S.db.doc('posts/' + S.postId).set(body);
+  S.post.updatedAt = now;
+}
+async function takeLock(id) {
+  clearInterval(S.lockTimer); S.lockTimer = null;
+  if (!S.db || !S.holder) return true;
+  const ref = S.db.doc('locks/' + id);
+  try {
+    const r = await ref.acquire({holder: S.holder, ttlMs: 60000});
+    if (!r.acquired) return false;
+    S.lockTimer = setInterval(async () => {
+      if (S.postId !== id) return;
+      try { const r2 = await ref.acquire({holder: S.holder, ttlMs: 60000}); if (!r2.acquired) setReadOnly('lock'); } catch (e) {}
+    }, 25000);
+    return true;
+  } catch (e) { return true; }
+}
+
+/* ---------------- 공고 열기 / 만들기 ---------------- */
+async function flush() { if (S.saveT || S.saving) { await saveNow(); } }
+function loadPost(id, data) {
+  S.postId = id; S.post = clone({title: data.title, doc: data.doc, createdAt: data.createdAt, updatedAt: data.updatedAt});
+  S.hist = []; S.fut = []; S.sel = null;
+  $('#postTitle').value = S.post.title || '';
+  updUndo();
+}
+// Claude 저장소는 목록에 본문까지 오지만, 공용 저장소(Supabase)는 목록이 가벼워서 본문을 따로 받아온다.
+async function fullPost(id) {
+  const p = S.posts.find(x => x.id === id); if (!p) return null;
+  if (p.doc) return p;
+  try { const f = await S.db.doc('posts/' + id).get(); return f.exists ? {...p, ...f.data()} : null; } catch (e) { return null; }
+}
+async function openPost(id) {
+  await flush();
+  const p = await fullPost(id); if (!p) { toast('공고를 불러오지 못했어요. 잠시 후 다시 열어주세요'); return; }
+  loadPost(id, p);
+  const ok = S.noWrite ? false : await takeLock(id);
+  setReadOnly(S.noWrite ? 'perm' : ok ? null : 'lock');
+  setSave(p.updatedAt ? `마지막 수정 ${relTime(p.updatedAt)}${nameOf(p.updatedBy) ? ' · ' + nameOf(p.updatedBy) : ''}` : '');
+  renderPage(); renderPanel();
+}
+async function newPost(data = newPostData(), {save = false} = {}) {
+  await flush();
+  clearInterval(S.lockTimer); S.lockTimer = null;
+  S.postId = null; S.post = clone(data); S.hist = []; S.fut = []; S.sel = null;
+  $('#postTitle').value = S.post.title;
+  setReadOnly(S.noWrite ? 'perm' : null);
+  setSave(S.noWrite ? '' : '새 공고 · 수정하면 자동 저장돼요');
+  renderPage(); renderPanel(); updUndo();
+  if (save && !S.noWrite) await saveNow();
+}
+function setReadOnly(reason) {
+  S.readOnly = !!reason;
+  const b = $('#banner');
+  if (reason === 'lock') {
+    b.hidden = false;
+    b.innerHTML = `<span>${S.lockName ? esc(S.lockName) + '님이' : '다른 직원이'} 이 공고를 편집하고 있어서 지금은 보기만 할 수 있어요. 1분쯤 뒤에 다시 열거나 복사본을 만들어 편집하세요.</span><button class="btn sm" data-bact="copy" type="button">복사본 만들어 편집</button><button class="btn sm" data-bact="retry" type="button">다시 시도</button>`;
+  } else if (reason === 'perm') {
+    b.hidden = false; b.innerHTML = `<span>보기 전용이에요. 편집하려면 이 페이지 주인에게 ‘기여자’ 이상 권한을 요청하세요. PNG 저장은 할 수 있어요.</span>`;
+  } else if (S.localMode) {
+    b.hidden = false; b.innerHTML = `<span>${S.localMode}</span>`;
+  } else b.hidden = true;
+  updUndo();
+  $('#postTitle').readOnly = S.readOnly;
+}
+$('#banner').addEventListener('click', async e => {
+  const a = e.target.closest('[data-bact]')?.dataset.bact;
+  if (a === 'copy') { const d = {title: (S.post.title || '') + ' 복사본', doc: clone(S.post.doc)}; await newPost(d, {save: true}); toast('복사본을 만들었어요'); }
+  if (a === 'retry' && S.postId) openPost(S.postId);
+});
+
+/* ---------------- 이름 · 시간 ---------------- */
+function nameOf(id) { return id ? (S.names[id] || '') : ''; }
+async function resolveNames() {
+  if (!S.user?.profiles) return;
+  const ids = [...new Set(S.posts.map(p => p.updatedBy).filter(Boolean))];
+  if (!ids.length) return;
+  try { const ps = await S.user.profiles(ids); ids.forEach(id => { S.names[id] = ps[id]?.name || ''; }); if (!$('#modal').hidden && S.modal === 'list') renderList(); } catch (e) {}
+}
+function relTime(t) {
+  const s = (Date.now() - t) / 1000;
+  if (s < 60) return '방금'; if (s < 3600) return Math.floor(s / 60) + '분 전'; if (s < 86400) return Math.floor(s / 3600) + '시간 전';
+  return new Date(t).toLocaleDateString('ko-KR', {month: 'long', day: 'numeric'});
+}
+
+/* ---------------- 대지 이벤트 ---------------- */
+const page = $('#page');
+function ctx(el) {
+  const secEl = el.closest('.sec'); if (!secEl) return {};
+  return {secEl, sec: findSec(secEl.dataset.sid)};
+}
+page.addEventListener('click', e => {
+  if (S.readOnly) return;
+  const tool = e.target.closest('[data-tool]');
+  if (tool) { const {sec} = ctx(tool); secAction(tool.dataset.tool, sec.id); return; }
+  const add = e.target.closest('[data-add]');
+  if (add) { openPicker(+add.dataset.add); return; }
+  if (e.target.closest('.free-item')) return;
+  if (S.justDragged || e.target.closest('.colrs')) return;
+  const gtd = e.target.closest('.gt td');
+  if (gtd) {
+    if (!e.shiftKey && !e.target.closest('.f')) focusCell(gtd, true);
+    return;
+  }
+  const {sec} = ctx(e.target); if (!sec) return;
+  const slot = e.target.closest('.img-slot[data-img]');
+  if (slot) {
+    const path = slot.dataset.img;
+    if (slot.classList.contains('empty') || (S.sel?.kind === 'img' && S.sel.path === path && S.sel.sid === sec.id)) pickInto(sec.id, path);
+    select({sid: sec.id, kind: 'img', path}); return;
+  }
+  if (e.target.closest('.f')) return;
+  select({sid: sec.id, kind: 'sec'});
+});
+page.addEventListener('focusin', e => {
+  const f = e.target.closest('.f, .ft'); if (!f || S.readOnly) return;
+  S.preEdit = snap(); S.typed = false;
+  const gtd = f.closest('.gt td');
+  if (gtd) {
+    const {sec} = ctx(f), r = +gtd.dataset.r, c = +gtd.dataset.c, s = S.sel;
+    if (!(s?.kind === 'cells' && s.sid === sec.id && s.r0 === r && s.c0 === c && s.r1 === r + (gtd.rowSpan - 1) && s.c1 === c + (gtd.colSpan - 1))) {
+      S.cellAnchor = {r, c}; setCellSel(sec, {r, c}, {r, c});
+    }
+    return;
+  }
+  if (f.classList.contains('f')) { const {sec} = ctx(f); if (!(S.sel?.kind === 'field' && S.sel.path === f.dataset.f && S.sel.sid === sec.id)) select({sid: sec.id, kind: 'field', path: f.dataset.f}); }
+});
+page.addEventListener('focusout', e => {
+  if (!e.target.closest('.f, .ft')) return;
+  S.preEdit = null; S.typed = false;
+  if (S.saveT) saveNow();
+});
+const readText = el => { let t = el.innerText.replace(/ /g, ' '); if (t.endsWith('\n') && !el.textContent.endsWith('\n')) t = t.slice(0, -1); return t; };
+page.addEventListener('input', e => {
+  if (S.readOnly) return;
+  const f = e.target.closest('.f, .ft'); if (!f) return;
+  if (!S.typed && S.preEdit) { pushHist(S.preEdit); S.typed = true; }
+  const {sec} = ctx(f);
+  let v = readText(f);
+  if (!v.trim() && f.innerHTML !== '') { f.innerHTML = ''; v = ''; }
+  if (f.classList.contains('ft')) { const it = sec.free.find(x => x.id === f.closest('.free-item').dataset.free); it.text = v; fitFree(page); }
+  else setP(sec.d, f.dataset.f, v);
+  changed(); fitStage();
+  if (S.sel?.kind === 'sec' || (TYPES[sec.type].list && $('#panel .items'))) renderPanelListLabels(sec);
+});
+page.addEventListener('keydown', e => {
+  const f = e.target.closest('.f'); if (!f) return;
+  if (e.key === 'Enter' && f.hasAttribute('data-single')) { e.preventDefault(); f.blur(); }
+  if (e.key === 'Escape') f.blur();
+  if (e.key === 'Tab' && f.closest('.gt')) {
+    e.preventDefault();
+    const tds = $$('td', f.closest('.gt')), i = tds.indexOf(f.closest('td'));
+    const next = tds[i + (e.shiftKey ? -1 : 1)]; if (next) focusCell(next, false);
+  }
+});
+function focusCell(td, caretEnd) {
+  const f = td.querySelector('.f'); if (!f) return;
+  f.focus();
+  const r = document.createRange(); r.selectNodeContents(f); if (caretEnd) r.collapse(false);
+  const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r);
+}
+function setCellSel(sec, a, b, panel = true) {
+  S.sel = {sid: sec.id, kind: 'cells', ...expandRect(sec.d.rows, normRect(a, b))};
+  applySel(panel);
+}
+// 칸 위에서 누른 채 끌면 여러 칸 선택, Shift+클릭으로 범위 넓히기
+function cellPointerDown(e, td) {
+  const {sec} = ctx(td), table = td.closest('.gt');
+  const r = +td.dataset.r, c = +td.dataset.c;
+  if (e.shiftKey && S.sel?.kind === 'cells' && S.sel.sid === sec.id) {
+    e.preventDefault(); document.activeElement?.blur?.();
+    setCellSel(sec, S.cellAnchor || {r: S.sel.r0, c: S.sel.c0}, {r, c}); return;
+  }
+  S.cellAnchor = {r, c};
+  let moved = false, last = r + ',' + c;
+  const mv = ev => {
+    const el = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.gt td');
+    if (!el || el.closest('.gt') !== table) return;
+    const key = el.dataset.r + ',' + el.dataset.c; if (key === last) return; last = key;
+    if (!moved) { moved = true; table.classList.add('dragging'); if (document.activeElement?.closest?.('.gt')) document.activeElement.blur(); }
+    getSelection().removeAllRanges();
+    setCellSel(sec, {r, c}, {r: +el.dataset.r, c: +el.dataset.c}, false);
+  };
+  const up = () => {
+    window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+    table.classList.remove('dragging');
+    if (moved) { getSelection().removeAllRanges(); renderPanel(); S.justDragged = true; setTimeout(() => { S.justDragged = false; }, 0); }
+  };
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+}
+function colResize(e, h) {
+  e.preventDefault();
+  const {sec} = ctx(h), i = +h.dataset.i, table = h.parentElement.querySelector('.gt'), cols = $$('col', table);
+  const tw = table.offsetWidth, a0 = sec.d.cols[i], b0 = sec.d.cols[i + 1], left0 = parseFloat(h.style.left), sx = e.clientX, before = snap();
+  let moved = false; h.classList.add('on');
+  const mv = ev => {
+    const dp = (ev.clientX - sx) / S.scale / tw * 100;
+    let a = a0 + dp, b = b0 - dp;
+    if (a < 4) { b -= 4 - a; a = 4; } if (b < 4) { a -= 4 - b; b = 4; }
+    sec.d.cols[i] = +a.toFixed(2); sec.d.cols[i + 1] = +b.toFixed(2); moved = true;
+    cols[i].style.width = a + '%'; cols[i + 1].style.width = b + '%'; h.style.left = (left0 + a - a0) + '%';
+  };
+  const up = () => {
+    window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+    h.classList.remove('on');
+    if (moved) { pushHist(before); changed(); renderPage(); }
+  };
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+}
+page.addEventListener('paste', e => {
+  const f = e.target.closest('.f, .ft'); if (!f) return;
+  e.preventDefault();
+  let t = (e.clipboardData || window.clipboardData).getData('text/plain');
+  if (f.hasAttribute('data-single')) t = t.replace(/\s*\n\s*/g, ' ');
+  document.execCommand('insertText', false, t);
+});
+page.addEventListener('dragover', e => { if (!S.readOnly && e.target.closest('.img-slot[data-img]')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
+page.addEventListener('drop', async e => {
+  const slot = e.target.closest('.img-slot[data-img]'); if (!slot || S.readOnly) return;
+  e.preventDefault();
+  const file = e.dataTransfer.files?.[0]; if (!file) return;
+  const {sec} = ctx(slot); placeImage(sec.id, slot.dataset.img, file);
+});
+page.addEventListener('pointerdown', e => {
+  if (S.readOnly) return;
+  const crs = e.target.closest('.colrs');
+  if (crs) { colResize(e, crs); return; }
+  const gtd = e.target.closest('.gt td');
+  if (gtd && e.button === 0) { cellPointerDown(e, gtd); return; }
+  const itemEl = e.target.closest('.free-item'); if (!itemEl) return;
+  const {sec} = ctx(itemEl); const it = sec.free.find(x => x.id === itemEl.dataset.free); if (!it) return;
+  const handle = e.target.closest('.handle'), grip = e.target.closest('.grip');
+  const wasSel = S.sel?.kind === 'free' && S.sel.fid === it.id;
+  if (it.kind === 'text' && wasSel && !handle && !grip && e.target.closest('.ft')) return; // 글자 편집
+  e.preventDefault();
+  if (!wasSel) select({sid: sec.id, kind: 'free', fid: it.id});
+  const sx = e.clientX, sy = e.clientY, o = {x: it.x, y: it.y, w: it.w, h: it.h};
+  let moved = false; const before = snap();
+  const mv = ev => {
+    const dx = (ev.clientX - sx) / S.scale, dy = (ev.clientY - sy) / S.scale;
+    if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+    moved = true;
+    if (handle) {
+      it.w = Math.max(40, Math.round(o.w + dx));
+      if (it.kind === 'image') it.h = Math.max(20, Math.round(ev.shiftKey ? o.h + dy : o.h * (it.w / o.w)));
+    } else { it.x = Math.round(o.x + dx); it.y = Math.round(o.y + dy); }
+    Object.assign(itemEl.style, {left: it.x + 'px', top: it.y + 'px', width: it.w + 'px', ...(it.kind === 'image' ? {height: it.h + 'px'} : {})});
+  };
+  const up = () => {
+    window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+    if (moved) { pushHist(before); changed(); fitFree(page); fitStage(); renderPanel(); }
+  };
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+});
+$('#stage').addEventListener('click', e => { if (e.target === e.currentTarget || e.target.id === 'pagewrap') { S.sel = null; applySel(); } });
+$('#addEnd').addEventListener('click', () => openPicker(S.post.doc.sections.length));
+
+document.addEventListener('keydown', e => {
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+  if (e.key === 'Escape' && !$('#modal').hidden) { if (S.modal !== 'login') closeModal(); return; }
+  const editing = e.target.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
+  if (editing || S.readOnly || !S.sel) return;
+  if (S.sel.kind === 'free') {
+    const sec = findSec(S.sel.sid), it = sec?.free.find(x => x.id === S.sel.fid); if (!it) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); commit(() => { sec.free = sec.free.filter(x => x !== it); S.sel = {sid: sec.id, kind: 'sec'}; }); return; }
+    const k = {ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1]}[e.key];
+    if (k) { e.preventDefault(); const m = e.shiftKey ? 10 : 1; commit(() => { it.x += k[0] * m; it.y += k[1] * m; }, {panel: false}); }
+  }
+});
+$('#btnUndo').onclick = undo; $('#btnRedo').onclick = redo;
+$('#postTitle').addEventListener('focus', () => { S.preEdit = snap(); S.typed = false; });
+$('#postTitle').addEventListener('input', e => { if (S.readOnly) return; if (!S.typed && S.preEdit) { pushHist(S.preEdit); S.typed = true; } S.post.title = e.target.value; changed(); });
+
+/* ---------------- 섹션 동작 ---------------- */
+function reId(s) { s.id = uid(); s.free.forEach(f => f.id = uid()); return s; }
+function secAction(act, sid) {
+  const secs = S.post.doc.sections, i = secs.findIndex(s => s.id === sid); if (i < 0) return;
+  if (act === 'up' && i > 0) commit(() => { [secs[i - 1], secs[i]] = [secs[i], secs[i - 1]]; S.sel = {sid, kind: 'sec'}; });
+  if (act === 'down' && i < secs.length - 1) commit(() => { [secs[i + 1], secs[i]] = [secs[i], secs[i + 1]]; S.sel = {sid, kind: 'sec'}; });
+  if (act === 'dup') commit(() => { const c = reId(clone(secs[i])); secs.splice(i + 1, 0, c); S.sel = {sid: c.id, kind: 'sec'}; });
+  if (act === 'del') { commit(() => { secs.splice(i, 1); S.sel = null; }); toast('섹션을 삭제했어요 · Ctrl+Z로 되돌릴 수 있어요'); }
+}
+function addSection(type, at) {
+  const s = makeSection(type);
+  commit(() => { S.post.doc.sections.splice(at, 0, s); S.sel = {sid: s.id, kind: 'sec'}; });
+  closeModal();
+  setTimeout(() => $(`.sec[data-sid="${s.id}"]`)?.scrollIntoView({behavior: 'smooth', block: 'center'}), 0);
+}
+// 새 글상자·사진은 섹션 맨 아래(기존 내용과 겹치지 않는 곳)에 놓고, 섹션이 그만큼 늘어난다.
+function freeSpot(sid) { const el = $(`.sec[data-sid="${sid}"]`); return el ? Math.max(20, Math.round(el.offsetHeight - 10)) : 40; }
+function addFreeText(sid) {
+  const sec = findSec(sid); const dark = secBg(sec) === 'black';
+  const it = {id: uid(), kind: 'text', x: 360, y: freeSpot(sid), w: 280, text: '글자를 입력하세요', style: {size: 28, weight: 700, color: dark ? '#ffffff' : '#111111', align: 'center'}};
+  commit(() => { sec.free.push(it); S.sel = {sid, kind: 'free', fid: it.id}; });
+  setTimeout(() => { const ft = $(`.free-item[data-free="${it.id}"] .ft`); if (!ft) return; ft.focus(); if (document.activeElement !== ft) return; const r = document.createRange(); r.selectNodeContents(ft); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); }, 0);
+}
+async function addFreeImage(sid) {
+  const file = await pickFile(); if (!file) return;
+  const sec = findSec(sid);
+  const work = toast('사진을 올리는 중…', 0);
+  try {
+    const {src, w, h} = await ingest(file);
+    const W = Math.min(360, w), H = Math.round(W * h / w);
+    const it = {id: uid(), kind: 'image', x: Math.round(500 - W / 2), y: freeSpot(sid), w: W, h: H, src, radius: 0};
+    commit(() => { sec.free.push(it); S.sel = {sid, kind: 'free', fid: it.id}; });
+    work.remove();
+  } catch (e) { work.remove(); toast(e.message || '사진을 넣지 못했어요'); }
+}
+
+/* ---------------- 이미지 ---------------- */
+function pickFile() {
+  return new Promise(res => {
+    const inp = $('#filePick'); inp.value = '';
+    const done = () => { inp.removeEventListener('change', on); res(inp.files?.[0] || null); };
+    const on = () => done();
+    inp.addEventListener('change', on, {once: true});
+    inp.click();
+  });
+}
+async function pickInto(sid, path) { const f = await pickFile(); if (f) placeImage(sid, path, f); }
+async function placeImage(sid, path, file) {
+  const work = toast('사진을 올리는 중…', 0);
+  try {
+    const {src} = await ingest(file);
+    const sec = findSec(sid); if (!sec) return;
+    commit(() => { const cur = getP(sec.d, path) || {}; setP(sec.d, path, {...cur, src, zoom: 1, px: 50, py: 50}); S.sel = {sid, kind: 'img', path}; });
+  } catch (e) { toast(e.message || '사진을 넣지 못했어요'); }
+  work.remove();
+}
+async function loadBitmap(file) {
+  const url = URL.createObjectURL(file);
+  try { const im = new Image(); im.src = url; await im.decode(); return im; } finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
+}
+function drawTo(im, maxSide) {
+  const r = Math.min(1, maxSide / Math.max(im.naturalWidth, im.naturalHeight));
+  const c = document.createElement('canvas'); c.width = Math.round(im.naturalWidth * r); c.height = Math.round(im.naturalHeight * r);
+  c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); return c;
+}
+const toBlob = (c, type, q) => new Promise(r => c.toBlob(r, type, q));
+async function ingest(file) {
+  if (!file || !/^image\//.test(file.type)) throw new Error('사진 파일(JPG, PNG)만 넣을 수 있어요');
+  const isSvg = file.type === 'image/svg+xml';
+  const im = await loadBitmap(file);
+  const w = im.naturalWidth || 400, h = im.naturalHeight || 300;
+  if (S.assets) {
+    try {
+      let blob = file;
+      if (!isSvg && (file.size > 1.5e6 || Math.max(w, h) > 2400)) { const keepPng = file.type === 'image/png'; blob = await toBlob(drawTo(im, 2400), keepPng ? 'image/png' : 'image/jpeg', .9); }
+      const r = await S.assets.upload(blob, {type: blob.type || file.type});
+      return {src: 'asset:' + r.id, w, h};
+    } catch (e) { if (e?.code === 'too_large') throw new Error('사진이 너무 커요 (20MB 이하로 넣어주세요)'); if (e?.code === 'quota_or_state') throw new Error('사진 저장 공간이 가득 찼어요'); }
+  }
+  const data = await shrinkData(im, S.db ? 230e3 : 400e3);
+  if (S.db) { const id = uid(); await S.db.doc('images/' + id).set({data, w, h, at: Date.now()}); S.dbimg[id] = data; return {src: 'dbimg:' + id, w, h}; }
+  return {src: data, w, h};
+}
+async function shrinkData(im, limit) {
+  let side = 1800, q = .86;
+  for (let n = 0; n < 9; n++) {
+    const c = drawTo(im, side);
+    let d = c.toDataURL('image/webp', q);
+    if (!d.startsWith('data:image/webp')) d = c.toDataURL('image/jpeg', q);
+    if (d.length * .75 < limit) return d;
+    if (q > .62) q -= .1; else side = Math.round(side * .8);
+  }
+  throw new Error('사진을 충분히 줄이지 못했어요. 더 작은 사진을 넣어주세요');
+}
+
+/* ---------------- 속성 패널 ---------------- */
+const seg = (k, opts, cur) => `<div class="seg">${opts.map(([v, l]) => `<button type="button" data-set="${k}" data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+const rng = (k, min, max, step, cur, unit = '') => `<div class="rng"><input type="range" data-set="${k}" min="${min}" max="${max}" step="${step}" value="${cur}" id="r-${k.replace(/\W/g, '')}"><output>${cur}${unit}</output></div>`;
+const COLORS = [['#111111', '검정'], ['#ffffff', '흰색'], ['#ffc200', '노랑'], ['#8a8780', '회색'], ['#c8102e', '빨강']];
+const sw = (k, cur) => `<div class="sw">${COLORS.map(([c, n]) => `<button type="button" title="${n}" aria-label="${n}" data-set="${k}" data-v="${c}" style="background:${c}" class="${(cur || '').toLowerCase() === c ? 'on' : ''}"></button>`).join('')}<input type="color" data-set="${k}" value="${cur || '#111111'}" aria-label="다른 색" title="다른 색" id="c-${k.replace(/\W/g, '')}"></div>`;
+function rgbHex(c) { const m = c.match(/\d+(\.\d+)?/g); if (!m) return '#111111'; return '#' + m.slice(0, 3).map(x => (+x).toString(16).padStart(2, '0')).join(''); }
+
+function renderPanel() {
+  const P = $('#panel');
+  const s = S.sel, sec = s && findSec(s.sid);
+  if (S.readOnly) { P.innerHTML = `<p class="ptitle">보기 전용</p><p class="hint">이 공고는 지금 편집할 수 없어요. 위쪽 안내를 확인하세요.</p><h3>저장</h3><button class="btn primary" type="button" data-act="export">PNG로 저장</button>`; return; }
+  if (!sec) { P.innerHTML = panelHome(); return; }
+  if (s.kind === 'field') { P.innerHTML = panelText(sec, s); return; }
+  if (s.kind === 'cells') { P.innerHTML = panelCells(sec, s); return; }
+  if (s.kind === 'img') { P.innerHTML = panelImg(sec, s); return; }
+  if (s.kind === 'free') { const it = sec.free.find(x => x.id === s.fid); if (!it) { S.sel = null; P.innerHTML = panelHome(); return; } P.innerHTML = it.kind === 'text' ? panelText(sec, s, it) : panelFreeImg(sec, it); return; }
+  P.innerHTML = panelSec(sec);
+}
+function panelHome() {
+  return `<p class="ptitle">편집하는 방법</p>
+    <div class="tip"><b>글자</b>를 클릭하면 바로 고칠 수 있어요.<br><b>사진</b>을 클릭하면 바꾸거나 위치를 맞출 수 있어요.<br><b>빈 곳</b>을 클릭하면 섹션 전체를 고르고 옮기거나 지울 수 있어요.<br>실수했다면 <b>Ctrl+Z</b>로 되돌리세요.</div>
+    <h3>섹션 추가</h3><div class="typelist">${typeButtons(S.post.doc.sections.length)}</div>`;
+}
+function typeButtons(at) {
+  return Object.entries(TYPES).map(([k, t]) => `<button type="button" class="typebtn" data-act="addsec" data-type="${k}" data-at="${at}"><span class="thumb th-${k}${t.bg === 'black' ? ' dark' : ''}"></span><span><b>${t.name}</b><small>${t.desc}</small></span></button>`).join('');
+}
+function listLabel(sec, item) {
+  if (sec.type === 'jobs' || sec.type === 'steps') return String(item.name || '').replace(/\n/g, ' ') || '(이름 없음)';
+  if (sec.type === 'table') return item.k || '(항목)';
+  return String(item).replace(/\n/g, ' ') || '(빈 칸)';
+}
+function renderPanelListLabels(sec) {
+  const lis = $$('#panel .items li span'); const key = TYPES[sec.type].list; if (!key || !lis.length) return;
+  sec.d[key].forEach((it, i) => { if (lis[i]) lis[i].textContent = listLabel(sec, it); });
+}
+function panelSec(sec) {
+  const t = TYPES[sec.type], d = sec.d, bg = secBg(sec);
+  const cs = getComputedStyle($(`.sec[data-sid="${sec.id}"]`) || document.body);
+  const pt = sec.pt ?? Math.round(parseFloat(cs.paddingTop) || 0), pb = sec.pb ?? Math.round(parseFloat(cs.paddingBottom) || 0);
+  let h = `<p class="ptitle">${t.name}</p><p class="hint">${t.desc}</p>
+    <div class="grid2" style="margin-top:12px"><button class="btn" type="button" data-act="sec" data-v="up">↑ 위로</button><button class="btn" type="button" data-act="sec" data-v="down">↓ 아래로</button>
+    <button class="btn" type="button" data-act="sec" data-v="dup">복제</button><button class="btn danger" type="button" data-act="sec" data-v="del">삭제</button></div>`;
+  if (t.list) {
+    const items = d[t.list];
+    h += `<h3>${sec.type === 'jobs' ? '직무' : sec.type === 'table' ? '항목' : sec.type === 'steps' ? '단계' : '동그라미'} ${items.length}개</h3><ul class="items">${items.map((it, i) => `<li><span>${esc(listLabel(sec, it))}</span>
+      <button type="button" data-act="li" data-v="up" data-i="${i}" aria-label="위로" title="위로">↑</button><button type="button" data-act="li" data-v="down" data-i="${i}" aria-label="아래로" title="아래로">↓</button><button type="button" data-act="li" data-v="del" data-i="${i}" aria-label="삭제" title="삭제">✕</button></li>`).join('')}</ul>
+      <div class="row" style="margin-top:8px"><button class="btn" type="button" data-act="li" data-v="add">＋ 추가</button></div>`;
+  }
+  if (sec.type === 'pill') h += `<h3>모양</h3>${seg('sec.d.variant', [['line', '테두리'], ['black', '검정'], ['yellow', '노랑']], d.variant || 'line')}`;
+  if (sec.type === 'steps') h += `<h3>동그라미 색</h3>${seg('sec.d.variant', [['line', '테두리만'], ['last', '마지막만 노랑'], ['yellow', '모두 노랑']], d.variant || 'line')}
+    <p class="hint" style="margin-top:8px">단계는 6개까지 넣을 수 있고, 개수에 맞춰 동그라미 크기가 자동으로 맞춰져요.</p>`;
+  if (sec.type === 'photo') h += `<h3>사진</h3><div class="row"><span class="lab">개수</span>${seg('sec.d.n', [[1, '1장'], [2, '2장'], [3, '3장']], d.n)}</div>
+      <div class="row"><span class="lab">비율</span>${seg('sec.d.ratio', [['16/9', '와이드'], ['4/3', '가로'], ['1/1', '정사각'], ['3/4', '세로']], d.ratio)}</div>
+      <div class="row"><span class="lab">폭</span>${seg('sec.d.full', [[false, '여백 있게'], [true, '꽉 차게']], d.full)}</div>`;
+  if (sec.type === 'spacer') h += `<h3>높이</h3>${rng('sec.d.h', 10, 400, 5, d.h, 'px')}`;
+  if (sec.type === 'grid') h += `<h3>표 전체</h3>
+      <p class="hint">칸을 클릭하거나 누른 채 끌어서 고르면 색칠 · 합치기 · 줄 추가를 할 수 있어요. 열 사이 세로선을 끌면 너비가 바뀌어요.</p>
+      <div class="row"><span class="lab">선 굵기</span>${rng('sec.d.bw', 0, 8, .5, d.bw, 'px')}</div>
+      <div class="row"><span class="lab">선 색</span>${sw('sec.d.bc', d.bc)}</div>
+      <div class="row"><span class="lab">글자 크기</span>${rng('sec.d.fs', 12, 60, 1, d.fs, 'px')}</div>
+      <div class="row"><span class="lab">칸 여백</span>${rng('sec.d.pad', 4, 48, 1, d.pad, 'px')}</div>
+      <div class="row"><span class="lab">폭</span>${seg('sec.d.full', [[false, '여백 있게'], [true, '꽉 차게']], d.full)}</div>
+      <div class="grid2" style="margin-top:10px"><button class="btn" type="button" data-act="g-row-end">＋ 맨 아래 줄</button><button class="btn" type="button" data-act="g-col-end">＋ 맨 오른쪽 열</button></div>`;
+  h += `<h3>배경색</h3><div class="sw">${[['white', '#ffffff', '흰색'], ['grey', '#f3f2ee', '연회색'], ['yellow', '#ffc200', '노랑'], ['black', '#000000', '검정']].map(([v, c, n]) =>
+      `<button type="button" title="${n}" aria-label="${n}" data-set="sec.bg" data-v="${v}" style="background:${c}" class="${bg === v ? 'on' : ''}"></button>`).join('')}</div>`;
+  if (sec.type !== 'hero' && sec.type !== 'spacer') h += `<h3>여백</h3><div class="row"><span class="lab">위</span>${rng('sec.pt', 0, 240, 2, pt, 'px')}</div><div class="row"><span class="lab">아래</span>${rng('sec.pb', 0, 240, 2, pb, 'px')}</div>`;
+  h += `<h3>이 섹션에 넣기</h3><div class="grid2"><button class="btn" type="button" data-act="addtext">＋ 글상자</button><button class="btn" type="button" data-act="addimg">＋ 사진</button></div>
+    <p class="hint" style="margin-top:8px">글상자와 사진은 자유롭게 끌어서 놓을 수 있어요.</p>`;
+  return h;
+}
+function textEl(sec, s) {
+  const secEl = $(`.sec[data-sid="${sec.id}"]`); if (!secEl) return null;
+  return s.kind === 'free' ? secEl.querySelector(`.free-item[data-free="${s.fid}"] .ft`) : secEl.querySelector(`.f[data-f="${s.path}"]`);
+}
+function panelText(sec, s, it) {
+  const el = textEl(sec, s); const cs = el ? getComputedStyle(el) : null;
+  const o = (it ? it.style : sec.st[styleKey(s.path)]) || {};
+  const size = o.size || (cs ? Math.round(parseFloat(cs.fontSize) * 10) / 10 : 20);
+  const weight = o.weight || (cs ? (+cs.fontWeight >= 750 ? 800 : +cs.fontWeight >= 650 ? 700 : +cs.fontWeight >= 450 ? 500 : 400) : 400);
+  const font = o.font || (cs && /Chosun/i.test(cs.fontFamily) ? 'serif' : 'sans');
+  const color = o.color || (cs ? rgbHex(cs.color) : '#111111');
+  const align = o.align || (cs ? ({start: 'left', end: 'right', justify: 'left'}[cs.textAlign] || cs.textAlign) : 'left');
+  const lh = o.lh || (cs && cs.lineHeight !== 'normal' ? Math.round(parseFloat(cs.lineHeight) / parseFloat(cs.fontSize) * 100) / 100 : 1.4);
+  const multi = sec.type === 'jobs' || sec.type === 'table' ? '<p class="hint">같은 섹션의 같은 칸(예: 모든 직무 이름)에 함께 적용돼요.</p>' : '';
+  return `<p class="ptitle">${it ? '글상자' : '글자'}</p><p class="hint">${it ? '글상자를 한 번 더 클릭하면 글을 고칠 수 있어요.' : '대지에서 글자를 직접 고치고, 여기서 모양을 바꾸세요.'}</p>${s.kind === 'field' ? multi : ''}
+    <h3>글꼴</h3>${seg('txt.font', [['sans', '고딕 (프리텐다드)'], ['serif', '명조 (조선일보)']], font)}
+    <h3>크기</h3><div class="row"><div class="num"><button type="button" data-act="size" data-v="-2" aria-label="작게">−</button><input id="sizeIn" data-set="txt.size" inputmode="decimal" value="${size}"><button type="button" data-act="size" data-v="2" aria-label="크게">＋</button></div><span class="hint" style="margin:0">px</span></div>
+    <h3>굵기</h3>${seg('txt.weight', [[400, '보통'], [500, '중간'], [700, '굵게'], [800, '아주 굵게']], weight)}
+    <h3>색</h3>${sw('txt.color', color)}
+    <h3>정렬</h3>${seg('txt.align', [['left', '왼쪽'], ['center', '가운데'], ['right', '오른쪽']], align)}
+    <h3>줄 간격</h3>${rng('txt.lh', .9, 2.4, .05, lh)}
+    <h3>&nbsp;</h3>${it ? `<div class="grid2"><button class="btn" type="button" data-act="front">맨 앞으로</button><button class="btn danger" type="button" data-act="delfree">글상자 삭제</button></div>`
+      : `<button class="btn" type="button" data-act="resetstyle">원래 모양으로 되돌리기</button>`}
+    <h3>섹션</h3><button class="btn" type="button" data-act="selsec">이 섹션 고르기 (${TYPES[sec.type].name})</button>`;
+}
+const CELL_BG = [['', '없음'], ['#ffffff', '흰색'], ['#f3f2ee', '연회색'], ['#fff1c2', '연노랑'], ['#ffc200', '노랑'], ['#111111', '검정']];
+const CELL_FG = [['', '기본'], ['#111111', '검정'], ['#ffffff', '흰색'], ['#ffc200', '노랑'], ['#8a8780', '회색'], ['#c8102e', '빨강']];
+const csw = (k, list, cur) => `<div class="sw">${list.map(([c, n]) => `<button type="button" title="${n}" aria-label="${n}" data-set="${k}" data-v="${c}" class="${c ? '' : 'csw-none'}${(cur || '').toLowerCase() === c ? ' on' : ''}" style="background:${c || '#fff'}"></button>`).join('')}<input type="color" data-set="${k}" value="${cur || '#ffffff'}" aria-label="다른 색" title="다른 색" id="c-${k.replace(/\W/g, '')}"></div>`;
+function panelCells(sec, s) {
+  const d = sec.d, a = d.rows[s.r0][s.c0], nr = s.r1 - s.r0 + 1, nc = s.c1 - s.c0 + 1;
+  let merged = false; forCells(d, s, x => { if ((x.rs || 1) > 1 || (x.cs || 1) > 1) merged = true; });
+  const single = !merged ? nr * nc === 1 : (a.rs || 1) === nr && (a.cs || 1) === nc;
+  return `<p class="ptitle">표 · ${single ? '칸 1개' : `${nr}줄 × ${nc}칸`} 선택</p>
+    <p class="hint">칸을 누른 채 끌면 여러 칸을 고를 수 있어요. Shift+클릭으로 넓힐 수도 있어요. Tab 키로 다음 칸에 입력해요.</p>
+    <h3>칸 색</h3>${csw('cell.bg', CELL_BG, a.bg)}
+    <h3>글자 색</h3>${csw('cell.color', CELL_FG, a.color)}
+    <h3>글자</h3><div class="row">${seg('cell.b', [[false, '보통'], [true, '굵게']], !!a.b)}</div>
+    <div class="row"><span class="lab">크기</span><div class="num"><button type="button" data-act="csize" data-v="-2" aria-label="작게">−</button><input id="csizeIn" data-set="cell.size" inputmode="decimal" value="${a.size || d.fs}"><button type="button" data-act="csize" data-v="2" aria-label="크게">＋</button></div><span class="hint" style="margin:0">px</span></div>
+    <h3>정렬</h3><div class="row"><span class="lab">가로</span>${seg('cell.al', [['left', '왼쪽'], ['center', '가운데'], ['right', '오른쪽']], a.al || 'center')}</div>
+    <div class="row"><span class="lab">세로</span>${seg('cell.va', [['top', '위'], ['middle', '가운데'], ['bottom', '아래']], a.va || 'middle')}</div>
+    <h3>칸 합치기</h3><div class="grid2"><button class="btn" type="button" data-act="g-merge"${single ? ' disabled' : ''}>선택한 칸 합치기</button><button class="btn" type="button" data-act="g-split"${merged ? '' : ' disabled'}>합친 칸 나누기</button></div>
+    <h3>줄 (가로)</h3><div class="grid2"><button class="btn" type="button" data-act="g-row-above">＋ 위에 줄</button><button class="btn" type="button" data-act="g-row-below">＋ 아래에 줄</button></div>
+    <div class="row"><button class="btn danger" type="button" data-act="g-row-del">선택한 줄 삭제</button></div>
+    <div class="row"><span class="lab">줄 높이</span>${rng('rows.h', 30, 400, 2, d.rh[s.r0], 'px')}</div>
+    <h3>열 (세로)</h3><div class="grid2"><button class="btn" type="button" data-act="g-col-left">＋ 왼쪽에 열</button><button class="btn" type="button" data-act="g-col-right">＋ 오른쪽에 열</button></div>
+    <div class="row"><button class="btn danger" type="button" data-act="g-col-del">선택한 열 삭제</button></div>
+    <h3>지우기</h3><div class="grid2"><button class="btn" type="button" data-act="g-cleartext">글자 지우기</button><button class="btn" type="button" data-act="g-clearstyle">칸 모양 초기화</button></div>
+    <h3>섹션</h3><button class="btn" type="button" data-act="selsec">표 전체 설정 (선 굵기 · 색)</button>`;
+}
+function clampCells(sec) {
+  const d = sec.d, s = S.sel, R = d.rows.length - 1, C = d.cols.length - 1;
+  const r0 = Math.min(s.r0, R), c0 = Math.min(s.c0, C);
+  S.sel = {sid: sec.id, kind: 'cells', ...expandRect(d.rows, {r0, r1: Math.min(s.r1, R), c0, c1: Math.min(s.c1, C)})};
+}
+function gridAction(a, sec) {
+  const d = sec.d, s = S.sel, shift = (dr, dc) => { S.sel = {...s, r0: s.r0 + dr, r1: s.r1 + dr, c0: s.c0 + dc, c1: s.c1 + dc}; };
+  switch (a) {
+    case 'g-merge': commit(() => gMerge(d, s)); break;
+    case 'g-split': commit(() => { gSplit(d, s); clampCells(sec); }); break;
+    case 'g-row-above': commit(() => { gInsRow(d, s.r0, s.r0); shift(1, 0); clampCells(sec); }); break;
+    case 'g-row-below': commit(() => { gInsRow(d, s.r1 + 1, s.r1); clampCells(sec); }); break;
+    case 'g-col-left': commit(() => { gInsCol(d, s.c0, s.c0); shift(0, 1); clampCells(sec); }); break;
+    case 'g-col-right': commit(() => { gInsCol(d, s.c1 + 1, s.c1); clampCells(sec); }); break;
+    case 'g-row-del':
+      if (d.rows.length - (s.r1 - s.r0 + 1) < 1) { toast('표에는 줄이 1개 이상 있어야 해요. 표를 지우려면 섹션을 삭제하세요'); break; }
+      commit(() => { for (let r = s.r1; r >= s.r0; r--) gDelRow(d, r); clampCells(sec); }); break;
+    case 'g-col-del':
+      if (d.cols.length - (s.c1 - s.c0 + 1) < 1) { toast('표에는 열이 1개 이상 있어야 해요. 표를 지우려면 섹션을 삭제하세요'); break; }
+      commit(() => { for (let c = s.c1; c >= s.c0; c--) gDelCol(d, c); clampCells(sec); }); break;
+    case 'g-row-end': commit(() => gInsRow(d, d.rows.length, d.rows.length - 1)); break;
+    case 'g-col-end': commit(() => gInsCol(d, d.cols.length, d.cols.length - 1)); break;
+    case 'g-cleartext': commit(() => forCells(d, s, x => { x.t = ''; })); break;
+    case 'g-clearstyle': commit(() => forCells(d, s, x => { ['bg', 'color', 'b', 'size', 'al', 'va'].forEach(k => delete x[k]); })); break;
+  }
+}
+function panelImg(sec, s) {
+  const im = getP(sec.d, s.path) || {};
+  return `<p class="ptitle">사진</p><p class="hint">사진 칸을 한 번 더 클릭하거나, 파일을 끌어다 놓아도 바꿀 수 있어요.</p>
+    <div class="grid2" style="margin-top:12px"><button class="btn primary" type="button" data-act="replace">사진 바꾸기</button><button class="btn" type="button" data-act="clearimg"${im.src ? '' : ' disabled'}>비우기</button></div>
+    ${im.src ? `<h3>맞춤</h3>${seg('img.fit', [['cover', '칸에 꽉 채우기'], ['contain', '전체 보이기']], im.fit || 'cover')}
+    <h3>확대</h3>${rng('img.zoom', 1, 3, .05, im.zoom || 1, '배')}
+    <h3>보이는 위치</h3><div class="row"><span class="lab">가로</span>${rng('img.px', 0, 100, 1, im.px ?? 50, '%')}</div><div class="row"><span class="lab">세로</span>${rng('img.py', 0, 100, 1, im.py ?? 50, '%')}</div>` : ''}
+    <h3>섹션</h3><button class="btn" type="button" data-act="selsec">이 섹션 고르기 (${TYPES[sec.type].name})</button>`;
+}
+function panelFreeImg(sec, it) {
+  return `<p class="ptitle">추가한 사진</p><p class="hint">끌어서 옮기고, 오른쪽 아래 모서리를 끌어 크기를 바꾸세요.</p>
+    <div class="grid2" style="margin-top:12px"><button class="btn primary" type="button" data-act="replacefree">사진 바꾸기</button><button class="btn danger" type="button" data-act="delfree">사진 삭제</button></div>
+    <h3>너비</h3>${rng('free.w', 40, 1000, 2, it.w, 'px')}
+    <h3>모서리 둥글게</h3>${rng('free.radius', 0, 200, 2, it.radius || 0, 'px')}
+    <h3>순서</h3><button class="btn" type="button" data-act="front">맨 앞으로</button>
+    <h3>섹션</h3><button class="btn" type="button" data-act="selsec">이 섹션 고르기 (${TYPES[sec.type].name})</button>`;
+}
+
+function curSec() { return S.sel && findSec(S.sel.sid); }
+function curFree() { const sec = curSec(); return sec && S.sel.kind === 'free' ? sec.free.find(x => x.id === S.sel.fid) : null; }
+function txtTarget() {
+  const sec = curSec(); if (!sec) return null;
+  if (S.sel.kind === 'free') { const it = curFree(); it.style = it.style || {}; return it.style; }
+  const k = styleKey(S.sel.path); sec.st[k] = sec.st[k] || {}; return sec.st[k];
+}
+function setVal(k, raw, live) {
+  const sec = curSec(); if (!sec) return;
+  const num = v => (v === 'true' ? true : v === 'false' ? false : isNaN(+v) || v === '' ? v : +v);
+  const v = num(raw);
+  const apply = () => {
+    if (k === 'sec.bg') sec.bg = v;
+    else if (k === 'sec.pt') sec.pt = v;
+    else if (k === 'sec.pb') sec.pb = v;
+    else if (k.startsWith('sec.d.')) sec.d[k.slice(6)] = v;
+    else if (k.startsWith('txt.')) { const t = txtTarget(); const p = k.slice(4); if (p === 'size') { const n = parseFloat(raw); if (!(n > 0)) return; t.size = Math.min(300, n); } else t[p] = v; }
+    else if (k.startsWith('img.')) { const im = getP(sec.d, S.sel.path); im[k.slice(4)] = v; }
+    else if (k.startsWith('free.')) { const it = curFree(); it[k.slice(5)] = v; if (k === 'free.w' && it.kind === 'image') { it.h = Math.round(it.h * v / (it.wPrev || it.w)); } }
+    else if (k.startsWith('cell.')) {
+      const p = k.slice(5); let val = v;
+      if (p === 'size') { const n = parseFloat(raw); if (!(n > 0)) return; val = Math.min(200, n); }
+      forCells(sec.d, S.sel, x => { if (val === '' || val === false || val == null) delete x[p]; else x[p] = val; });
+    }
+    else if (k === 'rows.h') { for (let r = S.sel.r0; r <= S.sel.r1; r++) sec.d.rh[r] = v; }
+  };
+  if (live) {
+    if (!S.sliderSnap) { pushHist(); S.sliderSnap = true; }
+    if (k === 'free.w') { const it = curFree(); it.wPrev = it.w; }
+    apply(); if (k === 'free.w') delete curFree().wPrev;
+    changed(); renderPage();
+  } else commit(apply, {panel: true});
+}
+const P = $('#panel');
+P.addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.set) { setVal(b.dataset.set, b.dataset.v, false); return; }
+  const a = b.dataset.act, sec = curSec();
+  switch (a) {
+    case 'addsec': addSection(b.dataset.type, +b.dataset.at); break;
+    case 'sec': secAction(b.dataset.v, sec.id); break;
+    case 'li': {
+      const key = TYPES[sec.type].list, arr = sec.d[key], i = +b.dataset.i;
+      if (b.dataset.v === 'add') { if (sec.type === 'steps' && arr.length >= 6) { toast('단계는 6개까지 넣을 수 있어요'); break; } commit(() => arr.push(NEW_ITEM[sec.type]())); }
+      if (b.dataset.v === 'del') { if (arr.length <= 1) { toast('최소 1개는 있어야 해요. 섹션을 지우려면 위의 삭제를 누르세요'); break; } commit(() => arr.splice(i, 1)); }
+      if (b.dataset.v === 'up' && i > 0) commit(() => { [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]]; });
+      if (b.dataset.v === 'down' && i < arr.length - 1) commit(() => { [arr[i + 1], arr[i]] = [arr[i], arr[i + 1]]; });
+      break;
+    }
+    case 'size': { const t = $('#sizeIn'); const n = Math.max(6, Math.round((parseFloat(t.value) + +b.dataset.v) * 10) / 10); setVal('txt.size', n, false); break; }
+    case 'resetstyle': commit(() => { delete sec.st[styleKey(S.sel.path)]; }); break;
+    case 'selsec': select({sid: sec.id, kind: 'sec'}); break;
+    case 'replace': pickInto(sec.id, S.sel.path); break;
+    case 'clearimg': commit(() => { const im = getP(sec.d, S.sel.path); im.src = ''; }); break;
+    case 'replacefree': { const it = curFree(); const f = await pickFile(); if (!f) break; const w = toast('사진을 올리는 중…', 0);
+      try { const r = await ingest(f); commit(() => { it.src = r.src; it.h = Math.round(it.w * r.h / r.w); }); } catch (er) { toast(er.message); } w.remove(); break; }
+    case 'delfree': { const it = curFree(); commit(() => { sec.free = sec.free.filter(x => x !== it); S.sel = {sid: sec.id, kind: 'sec'}; }); break; }
+    case 'front': { const it = curFree(); commit(() => { sec.free = sec.free.filter(x => x !== it).concat(it); }); break; }
+    case 'addtext': addFreeText(sec.id); break;
+    case 'addimg': addFreeImage(sec.id); break;
+    case 'export': openExport(); break;
+    case 'csize': { const n = Math.max(8, (parseFloat($('#csizeIn').value) || sec.d.fs) + +b.dataset.v); setVal('cell.size', n, false); break; }
+    default: if (a?.startsWith('g-')) gridAction(a, sec);
+  }
+});
+P.addEventListener('input', e => {
+  const t = e.target; if (!t.dataset.set) return;
+  if (t.type === 'range') { const o = t.parentElement.querySelector('output'); const unit = (o.textContent.match(/[^\d.\-]+$/) || [''])[0]; o.textContent = t.value + unit; setVal(t.dataset.set, t.value, true); }
+  if (t.type === 'color') setVal(t.dataset.set, t.value, true);
+});
+P.addEventListener('change', e => {
+  const t = e.target; if (!t.dataset.set) return;
+  if (t.type === 'range' || t.type === 'color') { S.sliderSnap = false; renderPanel(); return; }
+  if (t.id === 'sizeIn') setVal('txt.size', t.value, false);
+  if (t.id === 'csizeIn') setVal('cell.size', t.value, false);
+});
+P.addEventListener('keydown', e => { if ((e.target.id === 'sizeIn' || e.target.id === 'csizeIn') && e.key === 'Enter') e.target.blur(); });
+
+/* ---------------- 모달 ---------------- */
+function openModal(html, kind) { const m = $('#modal'); m.innerHTML = html; m.hidden = false; S.modal = kind; }
+function closeModal() { $('#modal').hidden = true; $('#modal').innerHTML = ''; S.modal = null; }
+$('#modal').addEventListener('click', e => { if (S.modal !== 'login' && (e.target.id === 'modal' || e.target.closest('[data-close]'))) closeModal(); });
+function openPicker(at) {
+  openModal(`<div class="mcard wide" role="dialog" aria-label="섹션 추가"><div class="mh"><h2>어떤 섹션을 넣을까요?</h2><button class="btn sm" type="button" data-close>닫기</button></div>
+    <div class="typelist" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">${typeButtons(at)}</div></div>`, 'picker');
+}
+$('#modal').addEventListener('click', e => {
+  const b = e.target.closest('[data-act="addsec"]'); if (b) addSection(b.dataset.type, +b.dataset.at);
+});
+
+$('#btnList').onclick = () => { openModal('<div class="mcard" role="dialog" aria-label="공고 목록" id="listCard"></div>', 'list'); renderList(); };
+function renderList() {
+  const c = $('#listCard'); if (!c) return;
+  const canMake = !S.noWrite;
+  let h = `<div class="mh"><h2>채용공고 목록</h2><button class="btn sm" type="button" data-close>닫기</button></div>
+    ${canMake ? `<button class="btn primary" type="button" data-lact="new">＋ 헤세드 기본 양식으로 새 공고</button>` : ''}`;
+  if (S.cloud) h += `<p class="hint" style="margin-top:12px">내 이름: <b>${esc(S.myName)}</b> · 공고에 마지막으로 고친 사람으로 표시돼요. <button class="btn sm" type="button" data-lact="rename">이름 바꾸기</button></p>`;
+  if (!S.db) h += `<p class="hint" style="margin-top:14px">로그인한 상태에서 열면 직원들과 공고 목록을 함께 쓸 수 있어요. 지금은 이 브라우저에만 저장돼요.</p>`;
+  else if (!S.posts.length) h += `<p class="empty">아직 저장된 공고가 없어요.<br>지금 화면에서 수정하면 첫 공고로 자동 저장돼요.</p>`;
+  else h += `<ul class="plist">${S.posts.map(p => `<li class="${p.id === S.postId ? 'cur' : ''}" data-id="${p.id}"><div class="pinfo"><b>${esc(p.title || '제목 없는 공고')}</b>
+      <small>${relTime(p.updatedAt || p.createdAt || Date.now())}${nameOf(p.updatedBy) ? ' · ' + esc(nameOf(p.updatedBy)) : ''}${p.id === S.postId ? ' · 지금 보는 중' : ''}</small></div>
+      <div class="pact">${S.confirmDel === p.id ? `<button class="btn sm danger" type="button" data-lact="del2">정말 삭제</button><button class="btn sm" type="button" data-lact="cancel">취소</button>`
+        : `<button class="btn sm" type="button" data-lact="open">열기</button>${canMake ? `<button class="btn sm" type="button" data-lact="dup">복제</button><button class="btn sm danger" type="button" data-lact="del">삭제</button>` : ''}`}</div></li>`).join('')}</ul>`;
+  c.innerHTML = h;
+}
+$('#modal').addEventListener('click', async e => {
+  const b = e.target.closest('[data-lact]'); if (!b) return;
+  const id = b.closest('li')?.dataset.id; const a = b.dataset.lact;
+  if (a === 'new') { closeModal(); await newPost(newPostData(), {save: true}); toast('새 공고를 만들었어요'); }
+  if (a === 'open') { closeModal(); openPost(id); }
+  if (a === 'rename') { await askLogin(true); renderList(); return; }
+  if (a === 'dup') { const p = await fullPost(id); if (!p) { toast('공고를 불러오지 못했어요'); return; } closeModal(); await newPost({title: (p.title || '') + ' 복사본', doc: clone(p.doc)}, {save: true}); toast('복사본을 만들었어요'); }
+  if (a === 'del') { S.confirmDel = id; renderList(); }
+  if (a === 'cancel') { S.confirmDel = null; renderList(); }
+  if (a === 'del2') {
+    S.confirmDel = null;
+    try { await S.db.doc('posts/' + id).delete(); toast('공고를 삭제했어요'); if (id === S.postId) { clearTimeout(S.saveT); S.saveT = null; S.postId = null; await newPost(); } }
+    catch (er) { toast('삭제하지 못했어요. 권한을 확인하세요'); }
+    renderList();
+  }
+});
+
+/* ---------------- 내보내기 ---------------- */
+const EXP = {ratio: 2, split: 0};
+function openExport() {
+  document.activeElement?.blur?.();
+  const H = Math.round($('#page').offsetHeight);
+  openModal(`<div class="mcard" role="dialog" aria-label="PNG로 저장"><div class="mh"><h2>PNG로 저장</h2><button class="btn sm" type="button" data-close>닫기</button></div>
+    <p class="hint">지금 공고 전체 크기: 가로 1000 × 세로 ${H.toLocaleString()}px</p>
+    <div class="opt">
+      <div class="row"><span class="lab">화질</span>${seg('x.ratio', [[1, '보통 1배'], [2, '선명 2배 (추천)'], [3, '아주 선명 3배']], EXP.ratio)}</div>
+      <p class="hint" style="margin:-4px 0 0 78px">1배는 가로 1000px, 2배는 2000px, 3배는 3000px 이미지예요. 배수가 클수록 확대해도 선명하지만 파일이 커져요.</p>
+      <div class="row"><span class="lab">파일</span>${seg('x.split', [[0, '한 장으로'], [2000, '나눠서 (장당 2000px)'], [3000, '나눠서 (장당 3000px)']], EXP.split)}</div>
+    </div>
+    <p class="hint">여러 장으로 나누면 섹션이 잘리지 않는 위치에서 나눠 ZIP 파일 하나로 저장해요.</p>
+    <div class="row" style="margin-top:14px"><button class="btn primary" type="button" id="doExport">PNG 만들기</button><span class="prog" id="prog"></span></div>
+    <div id="expOut" style="margin-top:14px"></div></div>`, 'export');
+}
+$('#modal').addEventListener('click', e => {
+  const b = e.target.closest('[data-set^="x."]');
+  if (b) { EXP[b.dataset.set.slice(2)] = +b.dataset.v; $$(`[data-set="${b.dataset.set}"]`).forEach(x => x.classList.toggle('on', x === b)); return; }
+  if (e.target.id === 'doExport') runExport();
+});
+$('#btnExport').onclick = openExport;
+
+async function fontEmbed() {
+  if (S.fontCSS) return S.fontCSS;
+  const faces = [['Pretendard', 400, 'Pretendard-Regular'], ['Pretendard', 500, 'Pretendard-Medium'], ['Pretendard', 700, 'Pretendard-Bold'], ['Pretendard', 800, 'Pretendard-ExtraBold'], ['ChosunNm', 400, 'ChosunNm']];
+  const parts = await Promise.all(faces.map(async ([fam, w, file]) => {
+    const blob = await (await fetch(`fonts/${file}.woff2`)).blob();
+    const url = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+    return `@font-face{font-family:'${fam}';font-weight:${w};src:url(${url}) format('woff2')}`;
+  }));
+  return (S.fontCSS = parts.join('\n'));
+}
+async function buildExportNode() {
+  const root = $('#exportRoot');
+  root.innerHTML = `<div class="page">${S.post.doc.sections.map((s, i) => secHTML(s, i, false)).join('')}</div>`;
+  await hydrateImages(root);
+  await Promise.all($$('img', root).map(im => im.decode().catch(() => {})));
+  await document.fonts.ready;
+  const node = root.firstElementChild;
+  fitFree(root);
+  return node;
+}
+function cutPoints(node, maxH) {
+  const H = node.offsetHeight; const tops = $$(':scope > .sec', node).map(s => s.offsetTop);
+  const cuts = [0]; let start = 0;
+  while (H - start > maxH) {
+    const cand = tops.filter(t => t > start && t - start <= maxH);
+    const next = cand.length ? Math.max(...cand) : start + maxH;
+    cuts.push(next); start = next;
+  }
+  cuts.push(H);
+  return cuts;
+}
+const canvasBlob = c => new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('이미지를 만들지 못했어요')), 'image/png'));
+async function runExport() {
+  const btn = $('#doExport'), prog = $('#prog'), out = $('#expOut');
+  btn.disabled = true; out.innerHTML = '';
+  try {
+    if (!window.htmlToImage) throw new Error('이미지 도구를 불러오지 못했어요. 새로고침 후 다시 시도하세요');
+    prog.textContent = '글꼴과 사진을 준비하는 중…';
+    const css = await fontEmbed();
+    const node = await buildExportNode();
+    const H = node.offsetHeight;
+    // 브라우저가 만들 수 있는 이미지 크기에 한계가 있어서, 너무 크면 배수를 낮춰 다시 그린다.
+    let ratio = EXP.ratio, canvas = null;
+    while (ratio > 1 && (H * ratio > 32000 || 1000 * ratio * H * ratio > 120e6)) ratio--;
+    for (; ratio >= 1; ratio--) {
+      prog.textContent = `이미지를 그리는 중… (${ratio}배)`;
+      try {
+        canvas = await htmlToImage.toCanvas(node, {width: 1000, height: H, pixelRatio: ratio, fontEmbedCSS: css, backgroundColor: '#ffffff', skipAutoScale: true, cacheBust: false});
+        await canvasBlob(canvas); break;
+      } catch (er) { canvas = null; if (ratio === 1) throw er; }
+    }
+    const lowered = ratio < EXP.ratio;
+    const base = ((S.post.title || '채용공고').trim() || '채용공고').replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 80);
+    let files = [];
+    if (!EXP.split || H <= EXP.split) files = [{name: base + '.png', blob: await canvasBlob(canvas)}];
+    else {
+      const cuts = cutPoints(node, EXP.split);
+      for (let i = 0; i < cuts.length - 1; i++) {
+        const y = cuts[i] * ratio, h = (cuts[i + 1] - cuts[i]) * ratio;
+        const c = document.createElement('canvas'); c.width = canvas.width; c.height = h;
+        c.getContext('2d').drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+        files.push({name: `${base}_${String(i + 1).padStart(2, '0')}.png`, blob: await canvasBlob(c)});
+      }
+    }
+    $('#exportRoot').innerHTML = '';
+    out.innerHTML = `<div class="preview-imgs">${files.map(f => `<img alt="${esc(f.name)}" src="${URL.createObjectURL(f.blob)}">`).join('')}</div>`;
+    let saveName, saveData;
+    if (files.length === 1) { saveName = files[0].name; saveData = files[0].blob; }
+    else {
+      prog.textContent = 'ZIP으로 묶는 중…';
+      const zip = new JSZip(); files.forEach(f => zip.file(f.name, f.blob));
+      saveName = base + '.zip'; saveData = await zip.generateAsync({type: 'blob'});
+    }
+    prog.textContent = '';
+    if (S.downloads) {
+      try { await S.downloads.save({filename: saveName, data: saveData}); prog.textContent = files.length > 1 ? `${files.length}장을 ZIP으로 저장했어요` : '저장했어요'; }
+      catch (er) {
+        if (er?.code === 'declined') prog.textContent = '저장을 취소했어요';
+        else prog.textContent = '여기서는 바로 저장할 수 없어요. 아래 이미지를 길게 누르거나 우클릭해서 저장하세요';
+      }
+    } else if (!window.claude?.use) {
+      // 일반 웹사이트로 열었을 때는 바로 내려받는다
+      const a = document.createElement('a'); a.href = URL.createObjectURL(saveData); a.download = saveName;
+      document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 5000);
+      prog.textContent = files.length > 1 ? `${files.length}장을 ZIP으로 저장했어요` : '저장했어요 · 다운로드 폴더를 확인하세요';
+    } else prog.textContent = '아래 이미지를 우클릭(휴대폰은 길게 누르기)해서 저장하세요';
+    if (lowered) prog.textContent += ` · 공고가 길어서 ${ratio}배로 저장했어요`;
+  } catch (er) {
+    console.error(er); prog.textContent = er?.message || 'PNG를 만들지 못했어요';
+  }
+  btn.disabled = false;
+}
+
+/* ---------------- 알림 ---------------- */
+function toast(msg, ms = 2600) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; t.setAttribute('role', 'status');
+  document.body.appendChild(t); if (ms) setTimeout(() => t.remove(), ms); return t;
+}
+
+/* ---------------- 시작 ---------------- */
+function startLocal(msg) {
+  S.localMode = msg;
+  let saved = null; try { saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch (e) {}
+  if (saved?.doc) { loadPost(null, saved); } else { S.post = newPostData(); $('#postTitle').value = S.post.title; }
+  setReadOnly(null); renderPage(); renderPanel();
+}
+/* ---------------- 공용 저장소 (Claude 없이 쓰는 웹사이트용, Supabase) ---------------- */
+// 매장 비밀번호를 확인하는 함수(RPC)로만 읽고 쓴다. 나머지 코드가 그대로 쓰도록 Claude db와 같은 모양으로 감싼다.
+const lsGet = k => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
+const lsSet = (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch (e) {} };
+async function cloudRpc(fn, args = {}, pin = S.pin) {
+  let r;
+  try {
+    r = await fetch(`${S.cloud.url}/rest/v1/rpc/${fn}`, {method: 'POST',
+      // 예전 방식 공개키(eyJ…)는 Authorization 에도 넣고, 새 방식(sb_publishable_…)은 apikey 에만 넣는다
+      headers: {apikey: S.cloud.key, ...(S.cloud.key.startsWith('eyJ') ? {Authorization: 'Bearer ' + S.cloud.key} : {}), 'Content-Type': 'application/json'},
+      body: JSON.stringify({p_pin: pin, ...args})});
+  } catch (e) { throw {code: 'unavailable', message: '인터넷 연결을 확인해주세요'}; }
+  const txt = await r.text();
+  if (!r.ok) {
+    if (/wrong_pin/.test(txt)) { lsSet('hesed.pin', ''); S.pin = ''; setTimeout(() => askLogin(false, '매장 비밀번호가 바뀌었어요. 새 비밀번호를 입력하세요'), 0); throw {code: 'wrong_pin'}; }
+    throw {code: r.status === 413 ? 'invalid_argument' : 'unavailable', message: txt};
+  }
+  return txt ? JSON.parse(txt) : null;
+}
+function cloudDB() {
+  const listeners = [];
+  const snapDoc = (id, data) => ({id, exists: !!data, data: () => data || undefined});
+  const poll = async () => {
+    if (!S.pin) return;
+    try {
+      const rows = await cloudRpc('list_posts');
+      const docs = rows.map(p => snapDoc(p.id, {title: p.title, createdAt: p.createdAt, updatedAt: p.updatedAt, updatedBy: p.updatedBy}));
+      listeners.forEach(l => l.next({docs, size: docs.length, empty: !docs.length}));
+    } catch (e) { if (e.code !== 'wrong_pin') listeners.forEach(l => l.err?.(e)); }
+  };
+  setInterval(() => { if (document.visibilityState === 'visible') poll(); }, 20000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') poll(); });
+  return {
+    poll,
+    doc(path) {
+      const [col, id] = path.split('/');
+      return {
+        async get() {
+          if (col === 'posts') return snapDoc(id, await cloudRpc('get_post', {p_id: id}));
+          if (col === 'images') { const d = await cloudRpc('get_image', {p_id: id}); return snapDoc(id, d ? {data: d} : null); }
+        },
+        async set(b) {
+          if (col === 'posts') { await cloudRpc('save_post', {p_id: id, p_title: b.title, p_doc: b.doc, p_by: b.updatedBy, p_created: b.createdAt, p_updated: b.updatedAt}); poll(); }
+          if (col === 'images') await cloudRpc('put_image', {p_id: id, p_data: b.data});
+        },
+        async delete() { await cloudRpc('delete_post', {p_id: id}); poll(); },
+        async acquire({holder, ttlMs}) {
+          const r = await cloudRpc('acquire_lock', {p_post: id, p_holder: holder, p_name: S.myName || '', p_ttl: Math.round(ttlMs / 1000)});
+          S.lockName = r.acquired ? '' : (r.name || '');
+          return r;
+        },
+      };
+    },
+    collection() { const q = {orderBy: () => q, limit: () => q, onSnapshot(next, err) { listeners.push({next, err}); poll(); return () => {}; }}; return q; },
+  };
+}
+function askLogin(renameOnly = false, notice = '') {
+  return new Promise(resolve => {
+    openModal(`<div class="mcard" role="dialog" aria-label="시작하기"><div class="mh"><h2>${renameOnly ? '이름 바꾸기' : '헤세드 채용공고 편집기'}</h2>${renameOnly ? '<button class="btn sm" type="button" id="lgCancel">취소</button>' : ''}</div>
+      ${notice ? `<p class="hint" style="color:var(--c-danger)">${esc(notice)}</p>` : `<p class="hint">${renameOnly ? '공고 목록에 마지막으로 고친 사람으로 표시돼요.' : '직원들과 함께 쓰는 편집기예요. 처음 한 번만 입력하면 이 기기에 기억돼요.'}</p>`}
+      <form id="lgForm" class="opt" style="margin-top:14px">
+        ${renameOnly ? '' : `<label class="row"><span class="lab">매장 비밀번호</span><input id="lgPin" type="password" autocomplete="current-password" style="flex:1;min-width:0;border:1px solid var(--c-line);border-radius:9px;padding:9px 10px;background:var(--c-panel)" required></label>`}
+        <label class="row"><span class="lab">내 이름</span><input id="lgName" value="${esc(S.myName || '')}" maxlength="20" placeholder="예: 김민수" style="flex:1;min-width:0;border:1px solid var(--c-line);border-radius:9px;padding:9px 10px;background:var(--c-panel)" required></label>
+        <div class="row"><button class="btn primary" type="submit" id="lgGo">${renameOnly ? '저장' : '시작하기'}</button><span class="prog" id="lgMsg"></span></div>
+      </form></div>`, 'login');
+    $('#lgCancel')?.addEventListener('click', () => { closeModalForce(); resolve(false); });
+    $('#lgForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const name = $('#lgName').value.trim(); if (!name) return;
+      if (renameOnly) { S.myName = name; S.uid = name; lsSet('hesed.name', name); closeModalForce(); resolve(true); return; }
+      const pin = $('#lgPin').value; $('#lgGo').disabled = true; $('#lgMsg').textContent = '확인하는 중…';
+      try {
+        const ok = await cloudRpc('check_pin', {}, pin);
+        if (!ok) { $('#lgMsg').textContent = '비밀번호가 맞지 않아요'; $('#lgGo').disabled = false; return; }
+        S.pin = pin; S.myName = name; S.uid = name; lsSet('hesed.pin', pin); lsSet('hesed.name', name);
+        closeModalForce(); resolve(true); S.db?.poll?.();
+      } catch (er) { $('#lgMsg').textContent = '연결하지 못했어요. 인터넷을 확인하고 다시 시도하세요'; $('#lgGo').disabled = false; }
+    });
+    setTimeout(() => (renameOnly ? $('#lgName') : $('#lgPin'))?.focus(), 0);
+  });
+}
+function closeModalForce() { S.modal = null; closeModal(); }
+async function bootCloud(cfg) {
+  S.cloud = cfg; S.pin = lsGet('hesed.pin'); S.myName = lsGet('hesed.name');
+  let device = lsGet('hesed.device'); if (!device) { device = 'd-' + uid(); lsSet('hesed.device', device); }
+  setSave('');
+  let ok = false;
+  if (S.pin && S.myName) { try { ok = await cloudRpc('check_pin', {}, S.pin); } catch (e) { ok = e.code !== 'wrong_pin'; } }
+  if (!ok) await askLogin(false);
+  S.uid = S.myName; S.holder = device;
+  S.user = {profiles: async ids => Object.fromEntries([].concat(ids).map(i => [i, {name: i}]))};
+  startShared(cloudDB());
+}
+
+async function boot() {
+  S.post = newPostData(); $('#postTitle').value = S.post.title;
+  renderPage(); renderPanel(); setSave('불러오는 중…');
+  const C = window.claude;
+  if (!C?.use) {
+    if (window.HESED_CLOUD?.url) return bootCloud(window.HESED_CLOUD);
+    startLocal('미리보기 모드예요. 작업 내용은 이 브라우저에만 저장돼요.'); setSave(''); return;
+  }
+  const use = n => C.use(n).catch(() => null);
+  const [db, user, assets, downloads] = await Promise.all([use('db'), use('user'), use('assets'), use('downloads')]);
+  Object.assign(S, {db, user, assets, downloads});
+  if (!db) { startLocal('로그인하지 않아서 직원들과 함께 저장되지 않아요. 작업 내용은 이 브라우저에만 남아요.'); setSave(''); return; }
+  try { S.uid = await user?.id?.(); } catch (e) {}
+  S.holder = S.uid || ('anon-' + uid());
+  try { const can = await user?.can?.('data.write'); if (can === false) S.noWrite = true; } catch (e) {}
+  startShared(db);
+}
+function startShared(db) {
+  S.db = db;
+  setReadOnly(S.noWrite ? 'perm' : null); renderPage(); renderPanel();
+  setSave(S.noWrite ? '' : '새 공고 · 수정하면 자동 저장돼요');
+  db.collection('posts').orderBy('updatedAt', 'desc').limit(300).onSnapshot(snapq => {
+    S.posts = snapq.docs.map(d => ({id: d.id, ...d.data()}));
+    if (!S.gotFirst) {
+      S.gotFirst = true;
+      if (!S.postId && !S.touched && S.posts.length) openPost(S.posts[0].id);
+    } else if (S.postId && S.readOnly) {
+      const p = S.posts.find(x => x.id === S.postId);
+      if (p && p.updatedAt !== S.post.updatedAt) fullPost(p.id).then(f => { if (f && S.readOnly && S.postId === f.id) { loadPost(f.id, f); renderPage(); } });
+    }
+    if (S.modal === 'list') renderList();
+    resolveNames();
+  }, err => { setSave('목록을 불러오지 못했어요. 새로고침해주세요', true); });
+}
+window.addEventListener('beforeunload', () => { if (S.saveT) saveNow(); });
+boot();
+})();
+</script>
