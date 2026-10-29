@@ -427,6 +427,8 @@ function expandRect(rows, R) {
   }
   return {r0, r1, c0, c1};
 }
+const CELL_KEYS = ['size', 'b', 'color', 'al', 'va', 'font'];
+const cellCSS = x => `${x.bg ? `background:${x.bg};` : ''}${x.color ? `color:${x.color};` : ''}${x.b ? 'font-weight:700;' : ''}${x.size ? `font-size:${x.size}px;` : ''}${x.al ? `text-align:${x.al};` : ''}${x.va ? `vertical-align:${x.va};` : ''}${x.font === 'serif' ? "font-family:'ChosunNm',serif;" : ''}`;
 function forCells(d, R, fn) { for (let r = R.r0; r <= R.r1; r++) for (let c = R.c0; c <= R.c1; c++) { const x = d.rows[r][c]; if (!x.m) fn(x, r, c); } }
 const cellStyle = x => { const {t, rs, cs, m, ...st} = x; return clone(st); };
 function gMerge(d, R) {
@@ -566,8 +568,7 @@ function R(sec, E) {
     case 'grid': {
       const td = (x, r, c) => {
         if (x.m) return '';
-        const st = `${x.bg ? `background:${x.bg};` : ''}${x.color ? `color:${x.color};` : ''}${x.b ? 'font-weight:700;' : ''}${x.size ? `font-size:${x.size}px;` : ''}${x.al ? `text-align:${x.al};` : ''}${x.va ? `vertical-align:${x.va};` : ''}`;
-        return `<td data-r="${r}" data-c="${c}"${(x.rs || 1) > 1 ? ` rowspan="${x.rs}"` : ''}${(x.cs || 1) > 1 ? ` colspan="${x.cs}"` : ''} style="${st}">${field(`rows.${r}.${c}.t`, 'gcell', '')}</td>`;
+        return `<td data-r="${r}" data-c="${c}"${(x.rs || 1) > 1 ? ` rowspan="${x.rs}"` : ''}${(x.cs || 1) > 1 ? ` colspan="${x.cs}"` : ''} style="${cellCSS(x)}">${field(`rows.${r}.${c}.t`, 'gcell', '')}</td>`;
       };
       let cum = 0;
       const handles = E ? d.cols.slice(0, -1).map((w, i) => { cum += w; return `<div class="colrs" data-i="${i}" style="left:${cum}%" title="끌어서 열 너비 조절"></div>`; }).join('') : '';
@@ -926,13 +927,116 @@ function colResize(e, h) {
   };
   window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
 }
-page.addEventListener('paste', e => {
-  const f = e.target.closest('.f, .ft'); if (!f) return;
+/* ---------------- 복사 · 붙여넣기 (서식 포함) ---------------- */
+// 글자를 복사하면 서식을 함께 담고, 표 칸은 칸 단위(글자+서식+칸 색)로 담는다.
+// 같은 탭에서는 S.clip, 다른 탭에서는 클립보드의 전용 형식으로 알아본다.
+const CLIP_TYPE = 'application/x-hesed';
+const isTyping = () => { const ae = document.activeElement; return !!ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName); };
+function computedOf(f) {
+  const cs = getComputedStyle(f), td = f.closest('td');
+  return {size: Math.round(parseFloat(cs.fontSize) * 10) / 10, bold: +cs.fontWeight >= 600, color: rgbHex(cs.color),
+    align: ({start: 'left', end: 'right', justify: 'left'}[cs.textAlign] || cs.textAlign),
+    valign: td ? getComputedStyle(td).verticalAlign : null, font: /Chosun/i.test(cs.fontFamily) ? 'serif' : 'sans'};
+}
+const cellOf = td => { const sec = findSec(td.closest('.sec').dataset.sid); return {sec, x: sec.d.rows[+td.dataset.r][+td.dataset.c]}; };
+function writeClip(e, text, payload) {
   e.preventDefault();
-  let t = (e.clipboardData || window.clipboardData).getData('text/plain');
+  e.clipboardData.setData('text/plain', text);
+  try { e.clipboardData.setData(CLIP_TYPE, JSON.stringify(payload)); } catch (er) {}
+  S.clip = {text, payload};
+}
+function readClip(e) {
+  const text = e.clipboardData.getData('text/plain');
+  let p = null;
+  try { const raw = e.clipboardData.getData(CLIP_TYPE); if (raw) p = JSON.parse(raw); } catch (er) {}
+  if (!p && S.clip && S.clip.text === text) p = S.clip.payload;
+  if (p && p.text !== undefined && p.text !== text) p = null;
+  return {text, p};
+}
+function onCopy(e, cut) {
+  if (isTyping()) return;
+  const f = document.activeElement?.closest?.('#page .f, #page .ft');
+  const sel = getSelection(), s = S.sel;
+  // 칸 범위: 끌어서 고른 칸, 또는 칸을 클릭만 하고(글자 선택 없이) 복사
+  if (s?.kind === 'cells' && (!f || (f.closest('.gt') && sel.isCollapsed))) {
+    const sec = findSec(s.sid); if (!sec) return;
+    const cells = [];
+    for (let r = s.r0; r <= s.r1; r++) {
+      const row = [];
+      for (let c = s.c0; c <= s.c1; c++) { const x = sec.d.rows[r][c]; if (x.m) row.push(null); else { const {rs, cs, m, ...rest} = x; row.push(clone(rest)); } }
+      cells.push(row);
+    }
+    const text = cells.map(row => row.map(x => (x ? String(x.t || '').replace(/\n/g, ' ') : '')).join('\t')).join('\n');
+    writeClip(e, text, {kind: 'cells', text, cells});
+    if (cut && !S.readOnly) commit(() => forCells(sec.d, s, x => { x.t = ''; }));
+    toast(cut ? '칸을 잘라냈어요' : `칸 ${cells.length * cells[0].length}개를 복사했어요`, 1400);
+    return;
+  }
+  // 글자 일부 + 그 글자의 서식
+  if (f && !sel.isCollapsed) {
+    const text = sel.toString(), td = f.closest('.gt td');
+    const cell = td ? Object.fromEntries(CELL_KEYS.map(k => [k, cellOf(td).x[k] ?? null])) : null;
+    writeClip(e, text, {kind: 'text', text, comp: computedOf(f), cell});
+    if (cut && !S.readOnly) document.execCommand('delete');
+  }
+}
+function applyCellStyle(x, p) {
+  if (p.cell) { CELL_KEYS.forEach(k => { if (p.cell[k] == null || p.cell[k] === false) delete x[k]; else x[k] = p.cell[k]; }); return; }
+  const c = p.comp;
+  x.size = c.size; if (c.bold) x.b = true; else delete x.b;
+  x.color = c.color; x.al = c.align; if (c.valign) x.va = c.valign;
+  if (c.font === 'serif') x.font = 'serif'; else delete x.font;
+}
+const textStyleOf = c => ({size: c.size, weight: c.bold ? 700 : 400, color: c.color, align: c.align, font: c.font});
+// 붙여넣은 글자의 서식을 대상(표 칸 · 글자 · 글상자)에 옮긴다. 커서가 유지되도록 다시 그리지 않고 바로 적용한다.
+function applyPastedStyle(f, p) {
+  const {sec} = ctx(f); const td = f.closest('.gt td');
+  if (td) { const {x} = cellOf(td); applyCellStyle(x, p); td.setAttribute('style', cellCSS(x)); }
+  else if (f.classList.contains('ft')) { const it = sec.free.find(i => i.id === f.closest('.free-item').dataset.free); it.style = {...(it.style || {}), ...textStyleOf(p.comp)}; f.setAttribute('style', styleCSS(it.style)); }
+  else { const k = styleKey(f.dataset.f); sec.st[k] = {...(sec.st[k] || {}), ...textStyleOf(p.comp)}; f.setAttribute('style', styleCSS(sec.st[k])); }
+  changed(); fitFree(page); fitStage(); renderPanel();
+}
+function pasteCells(sec, s, cells, textOnly) {
+  const d = sec.d;
+  const fill = cells.length === 1 && cells[0].length === 1 && (s.r1 > s.r0 || s.c1 > s.c0);
+  const H = fill ? s.r1 - s.r0 + 1 : cells.length, Wd = fill ? s.c1 - s.c0 + 1 : Math.max(...cells.map(r => r.length));
+  commit(() => {
+    while (d.rows.length < s.r0 + H) gInsRow(d, d.rows.length, d.rows.length - 1);
+    for (let i = 0; i < H; i++) for (let j = 0; j < Wd; j++) {
+      const src = fill ? cells[0][0] : cells[i]?.[j]; if (!src) continue;
+      const r = s.r0 + i, c = s.c0 + j; if (c >= d.cols.length) continue;
+      const x = d.rows[r][c]; if (x.m) continue;
+      x.t = src.t || '';
+      if (!textOnly) [...CELL_KEYS, 'bg'].forEach(k => { if (src[k] == null || src[k] === false || src[k] === '') delete x[k]; else x[k] = src[k]; });
+    }
+    S.sel = {sid: sec.id, kind: 'cells', ...expandRect(d.rows, {r0: s.r0, c0: s.c0, r1: s.r0 + H - 1, c1: Math.min(d.cols.length - 1, s.c0 + Wd - 1)})};
+  });
+}
+function onPaste(e) {
+  if (isTyping() || S.readOnly) return;
+  const f = document.activeElement?.closest?.('#page .f, #page .ft');
+  const s = S.sel, {text, p} = readClip(e);
+  const cellsMode = s?.kind === 'cells' && (!f || f.closest('.gt'));
+  if (cellsMode) {
+    const sec = findSec(s.sid);
+    // 복사한 칸 묶음 → 칸 그대로 / 엑셀처럼 탭으로 나뉜 글 → 칸마다 / 칸을 고른 상태의 그냥 글 → 고른 칸 모두에
+    if (p?.kind === 'cells') { e.preventDefault(); document.activeElement?.blur?.(); pasteCells(sec, s, p.cells, false); return; }
+    if (/\t/.test(text) || (!f && text)) {
+      e.preventDefault(); document.activeElement?.blur?.();
+      const cells = text.replace(/\r/g, '').replace(/\n$/, '').split('\n').map(line => line.split('\t').map(t => ({t})));
+      pasteCells(sec, s, cells, true); return;
+    }
+  }
+  if (!f) return;
+  e.preventDefault();
+  let t = text;
   if (f.hasAttribute('data-single')) t = t.replace(/\s*\n\s*/g, ' ');
   document.execCommand('insertText', false, t);
-});
+  if (p?.kind === 'text') applyPastedStyle(f, p);
+}
+document.addEventListener('copy', e => onCopy(e, false));
+document.addEventListener('cut', e => onCopy(e, true));
+document.addEventListener('paste', onPaste);
 page.addEventListener('dragover', e => { if (!S.readOnly && e.target.closest('.img-slot[data-img]')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
 page.addEventListener('drop', async e => {
   const slot = e.target.closest('.img-slot[data-img]'); if (!slot || S.readOnly) return;
@@ -1196,7 +1300,8 @@ function panelCells(sec, s) {
     <p class="hint">칸을 누른 채 끌면 여러 칸을 고를 수 있어요. Shift+클릭으로 넓힐 수도 있어요. Tab 키로 다음 칸에 입력해요.</p>
     <h3>칸 색</h3>${csw('cell.bg', CELL_BG, a.bg)}
     <h3>글자 색</h3>${csw('cell.color', CELL_FG, a.color)}
-    <h3>글자</h3><div class="row">${seg('cell.b', [[false, '보통'], [true, '굵게']], !!a.b)}</div>
+    <h3>글자</h3><div class="row">${seg('cell.font', [['', '고딕'], ['serif', '명조']], a.font || '')}</div>
+    <div class="row">${seg('cell.b', [[false, '보통'], [true, '굵게']], !!a.b)}</div>
     <div class="row"><span class="lab">크기</span><div class="num"><button type="button" data-act="csize" data-v="-2" aria-label="작게">−</button><input id="csizeIn" data-set="cell.size" inputmode="decimal" value="${a.size || d.fs}"><button type="button" data-act="csize" data-v="2" aria-label="크게">＋</button></div><span class="hint" style="margin:0">px</span></div>
     <h3>정렬</h3><div class="row"><span class="lab">가로</span>${seg('cell.al', [['left', '왼쪽'], ['center', '가운데'], ['right', '오른쪽']], a.al || 'center')}</div>
     <div class="row"><span class="lab">세로</span>${seg('cell.va', [['top', '위'], ['middle', '가운데'], ['bottom', '아래']], a.va || 'middle')}</div>
