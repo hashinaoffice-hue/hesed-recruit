@@ -186,8 +186,8 @@ button{cursor:pointer}
 .t-badges{padding:40px 80px 80px}
 .badges-title{font-size:30px;line-height:1.4;text-align:center;margin-bottom:34px}
 .badges{display:flex;justify-content:center;gap:22px;flex-wrap:wrap}
-.badge{width:186px;height:186px;border-radius:50%;background:var(--acc);color:var(--chip-fg);display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
-.badge .f{font:700 27px/1.3 'Pretendard',sans-serif;text-align:center;letter-spacing:-.02em}
+.badge{width:var(--D,186px);height:var(--D,186px);border-radius:50%;background:var(--acc);color:var(--chip-fg);display:flex;align-items:center;justify-content:center;padding:calc(var(--D,186px) * .11);box-sizing:border-box}
+.badge .f{font:700 calc(var(--D,186px) * .145)/1.3 'Pretendard',sans-serif;text-align:center;letter-spacing:-.02em}
 
 .t-table{padding:28px 80px 88px}
 .tbl{border-top:2px solid var(--line);border-bottom:2px solid var(--line)}
@@ -538,15 +538,20 @@ function R(sec, E) {
       <div class="intro-row"><div class="intro-logo">${img('logo', 'logo', '로고')}</div><div class="intro-rule"></div>${field('body', 'intro-body serif', '소개 글')}</div>`;
     case 'pill': return `<div class="pill-wrap"><div class="pill v-${d.variant || 'line'}">${field('text', 'pill-text', '제목', true)}</div></div>`;
     case 'jobs': {
-      const n = Math.min(Math.max(d.items.length, 1), 3);
+      const n = d.perRow || Math.min(Math.max(d.items.length, 1), 3);
       return `<div class="jobs" style="grid-template-columns:repeat(${n},minmax(0,1fr))">${d.items.map((_, i) => `
         <div class="job"><div class="job-top">${field(`items.${i}.name`, 'job-name', '직무 이름', true)}${field(`items.${i}.count`, 'job-count', '인원', true)}</div>
         ${field(`items.${i}.desc`, 'job-desc', '하는 일')}</div>`).join('')}</div>`;
     }
     case 'table': return `<div class="tbl">${d.rows.map((_, i) => `
       <div class="tr"><div class="th"><i class="dia"></i>${field(`rows.${i}.k`, '', '항목', true)}</div>${field(`rows.${i}.v`, 'td', '내용')}</div>`).join('')}</div>`;
-    case 'badges': return `${field('title', 'badges-title serif', '제목 (비워두면 숨겨져요)', true)}
-      <div class="badges">${d.items.map((_, i) => `<div class="badge">${field('items.' + i, '', '장점')}</div>`).join('')}</div>`;
+    case 'badges': {
+      // 한 줄 개수를 정하면 안쪽 폭 840px에 맞춰 동그라미 지름을 정하고, 줄 폭을 그 개수만큼으로 묶는다
+      const per = d.perRow || 0, D = per ? Math.floor(Math.min(220, (840 - (per - 1) * 22) / per)) : 186;
+      const wrap = per ? `max-width:${per * D + (per - 1) * 22}px;margin:0 auto;` : '';
+      return `${field('title', 'badges-title serif', '제목 (비워두면 숨겨져요)', true)}
+      <div class="badges" style="--D:${D}px;${wrap}">${d.items.map((_, i) => `<div class="badge">${field('items.' + i, '', '장점')}</div>`).join('')}</div>`;
+    }
     case 'text': return `${field('title', 'tx-title serif', '작은 제목')}${field('body', 'tx-body', '설명 글')}`;
     case 'photo': {
       const n = d.n || 1;
@@ -1131,6 +1136,9 @@ function panelSec(sec) {
       <div class="row" style="margin-top:8px"><button class="btn" type="button" data-act="li" data-v="add">＋ 추가</button></div>`;
   }
   if (sec.type === 'pill') h += `<h3>모양</h3>${seg('sec.d.variant', [['line', '테두리'], ['black', '검정'], ['yellow', '노랑']], d.variant || 'line')}`;
+  if (sec.type === 'badges') h += `<h3>한 줄에 몇 개</h3>${seg('sec.d.perRow', [[0, '자동'], [2, '2'], [3, '3'], [4, '4'], [5, '5'], [6, '6']], d.perRow || 0)}
+    <p class="hint" style="margin-top:8px">개수를 정하면 한 줄에 그만큼 놓이도록 동그라미와 글자 크기가 맞춰져요. 남는 동그라미는 아랫줄 가운데에 놓여요.</p>`;
+  if (sec.type === 'jobs') h += `<h3>한 줄에 몇 개</h3>${seg('sec.d.perRow', [[0, '자동'], [1, '1'], [2, '2'], [3, '3'], [4, '4']], d.perRow || 0)}`;
   if (sec.type === 'steps') h += `<h3>동그라미 색</h3>${seg('sec.d.variant', [['line', '테두리만'], ['last', '마지막만 노랑'], ['yellow', '모두 노랑']], d.variant || 'line')}
     <p class="hint" style="margin-top:8px">단계는 6개까지 넣을 수 있고, 개수에 맞춰 동그라미 크기가 자동으로 맞춰져요.</p>`;
   if (sec.type === 'photo') h += `<h3>사진</h3><div class="row"><span class="lab">개수</span>${seg('sec.d.n', [[1, '1장'], [2, '2장'], [3, '3장']], d.n)}</div>
