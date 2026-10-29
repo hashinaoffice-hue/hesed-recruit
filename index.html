@@ -202,7 +202,12 @@ button{cursor:pointer}
 .icongrid button svg{width:26px;height:26px;color:var(--c-fg)}
 .icongrid button:hover{border-color:var(--c-sel)}
 .icongrid button.on{border-color:var(--c-sel);box-shadow:0 0 0 2px var(--c-sel) inset;color:var(--c-fg)}
-.fgrip{display:none}
+.fgrip,.frs,.snapv{display:none}
+.page.edit [data-obj]{cursor:pointer}
+.page.edit [data-obj]:hover{outline:calc(1.5px*var(--inv)) dashed rgba(47,107,255,.75);outline-offset:calc(3px*var(--inv))}
+.page.edit [data-obj].is-sel{outline:calc(2px*var(--inv)) solid #2f6bff;outline-offset:calc(3px*var(--inv))}
+.page.edit .frs.on{display:block;position:absolute;z-index:9;width:14px;height:14px;background:#fff;border:2px solid #2f6bff;border-radius:3px;transform:translate(-50%,-50%) scale(var(--inv));cursor:nwse-resize}
+.page.edit .snapv.on{display:block;position:absolute;left:500px;width:calc(1px*var(--inv));transform:translateX(-50%);background:#ff2d87;z-index:7;pointer-events:none}
 .page.edit .fgrip.on{display:flex;position:absolute;z-index:8;transform:translateY(-100%) scale(var(--inv));transform-origin:0 100%;gap:2px}
 .fgrip button{border:0;background:#2f6bff;color:#fff;font:600 12px/1 'Pretendard',sans-serif;padding:6px 9px;border-radius:6px 6px 0 0;cursor:move;white-space:nowrap}
 .fgrip button[data-g="del"]{cursor:pointer;background:#fff;color:#cf3426;box-shadow:inset 0 0 0 1px #cf3426}
@@ -435,7 +440,10 @@ function iconHTML(name, i, E) {
   return `<span class="bicon" data-icon="${i}">${iconSVG(name)}</span>`;
 }
 // 글자 위치(옮기기) · 여백 · 지우기는 칸마다 sec.lay[경로]에 둔다
-const layCSS = L => !L ? '' : `${L.x || L.y ? `position:relative;left:${L.x || 0}px;top:${L.y || 0}px;` : ''}${L.mt != null ? `margin-top:${L.mt}px;` : ''}${L.mb != null ? `margin-bottom:${L.mb}px;` : ''}`;
+const layCSS = L => !L ? '' : `${L.x || L.y ? `position:relative;left:${L.x || 0}px;top:${L.y || 0}px;` : ''}${L.mt != null ? `margin-top:${L.mt}px;` : ''}${L.mb != null ? `margin-bottom:${L.mb}px;` : ''}${L.s && L.s !== 1 ? `transform:scale(${L.s});` : ''}`;
+const layKey = s => !s ? null : s.kind === 'field' || s.kind === 'img' ? s.path : s.kind === 'obj' ? s.key : null;
+const OBJ_NAMES = {contact: '연락처 상자', pill: '제목 상자', card: '직무 카드', badge: '동그라미', step: '단계 동그라미'};
+const objName = key => OBJ_NAMES[key.split('.')[0]] || '개체';
 const fieldStyle = (sec, path, noLay) => styleCSS(sec.st[styleKey(path)]) + (noLay ? '' : layCSS(sec.lay?.[path]));
 
 function makeSection(type) {
@@ -596,7 +604,10 @@ function R(sec, E) {
   // 눈썹 글(RECRUIT 등)은 앞의 마름모와 함께 움직이도록 감싼 상자에 위치·여백을 준다
   const eyebrow = ph => (E || d.eyebrow) && !sec.lay?.eyebrow?.hide
     ? `<div class="eyebrow" style="${layCSS(sec.lay?.eyebrow)}"><i class="dia"></i>${field('eyebrow', '', ph, true, true)}</div>` : '';
+  // 상자 · 카드 · 동그라미 같은 개체의 여는 태그. 옮기기 · 크기 · 지우기는 sec.lay[key]를 따른다
+  const o = (key, cls, extra = '') => `<div class="${cls}" data-obj="${key}" style="${sec.lay?.[key]?.hide ? 'display:none;' : layCSS(sec.lay?.[key])}${extra}">`;
   const img = (path, cls = '', ph = '사진 넣기') => {
+    if (sec.lay?.[path]?.hide) return '';
     const im = getP(sec.d, path) || {};
     const url = imgURL(im.src);
     const fit = im.fit === 'contain' ? ' fit-contain' : '';
@@ -606,7 +617,7 @@ function R(sec, E) {
       const db = im.src.startsWith('dbimg:') ? ` data-dbimg="${im.src.slice(6)}"` : '';
       inner = `<img alt="" draggable="false"${db} src="${esc(url)}" style="${st}">`;
     } else if (E) inner = `<span class="ph">${ph}<br>클릭해서 넣기</span>`;
-    return `<div class="img-slot ${cls}${fit}${im.src ? '' : ' empty'}" data-img="${path}">${inner}</div>`;
+    return `<div class="img-slot ${cls}${fit}${im.src ? '' : ' empty'}" data-img="${path}" style="${layCSS(sec.lay?.[path])}">${inner}</div>`;
   };
   const d = sec.d;
   switch (sec.type) {
@@ -617,11 +628,11 @@ function R(sec, E) {
       <div class="hero-grid">${d.photos.map((_, i) => img('photos.' + i)).join('')}</div>`;
     case 'intro': return `${field('headline', 'intro-head serif', '인사 문구', true)}
       <div class="intro-row"><div class="intro-logo">${img('logo', 'logo', '로고')}</div><div class="intro-rule"></div>${field('body', 'intro-body serif', '소개 글')}</div>`;
-    case 'pill': return `<div class="pill-wrap"><div class="pill v-${d.variant || 'line'}">${field('text', 'pill-text', '제목', true)}</div></div>`;
+    case 'pill': return `<div class="pill-wrap">${o('pill', `pill v-${d.variant || 'line'}`)}${field('text', 'pill-text', '제목', true)}</div></div>`;
     case 'jobs': {
       const n = d.perRow || Math.min(Math.max(d.items.length, 1), 3);
       return `<div class="jobs" style="grid-template-columns:repeat(${n},minmax(0,1fr));gap:${d.gap ?? 24}px">${d.items.map((_, i) => `
-        <div class="job"><div class="job-top">${field(`items.${i}.name`, 'job-name', '직무 이름', true)}${field(`items.${i}.count`, 'job-count', '인원', true)}</div>
+        ${o('card.' + i, 'job')}<div class="job-top">${field(`items.${i}.name`, 'job-name', '직무 이름', true)}${field(`items.${i}.count`, 'job-count', '인원', true)}</div>
         ${field(`items.${i}.desc`, 'job-desc', '하는 일')}</div>`).join('')}</div>`;
     }
     case 'table': return `<div class="tbl">${d.rows.map((_, i) => `
@@ -631,7 +642,7 @@ function R(sec, E) {
       const gap = d.gap ?? 22, per = d.perRow || 0, D = per ? Math.floor(Math.min(220, (840 - (per - 1) * gap) / per)) : 186;
       const wrap = per ? `max-width:${per * D + (per - 1) * gap}px;margin-left:auto;margin-right:auto;` : '';
       return `${field('title', 'badges-title serif', '제목 (비워두면 숨겨져요)', true)}
-      <div class="badges" style="--D:${D}px;--is:${d.iconScale || 1};gap:${gap}px;${wrap}">${d.items.map((_, i) => `<div class="badge${d.showIcon ? ' has-icon' : ''}">${d.showIcon ? iconHTML(d.icons?.[i], i, E) : ''}${field('items.' + i, '', '장점')}</div>`).join('')}</div>`;
+      <div class="badges" style="--D:${D}px;--is:${d.iconScale || 1};gap:${gap}px;${wrap}">${d.items.map((_, i) => `${o('badge.' + i, `badge${d.showIcon ? ' has-icon' : ''}`)}${d.showIcon ? iconHTML(d.icons?.[i], i, E) : ''}${field('items.' + i, '', '장점')}</div>`).join('')}</div>`;
     }
     case 'text': return `${field('title', 'tx-title serif', '작은 제목')}${field('body', 'tx-body', '설명 글')}`;
     case 'photo': {
@@ -641,7 +652,7 @@ function R(sec, E) {
     }
     case 'apply': return `${eyebrow('HOW TO APPLY')}
       ${field('title', 'ap-title', '제목', true)}${field('body', 'ap-body', '안내 글')}
-      <div class="ap-contact">${field('label', 'ap-label', '담당', true)}${field('phone', 'ap-phone', '전화번호', true)}</div>
+      ${o('contact', 'ap-contact')}${field('label', 'ap-label', '담당', true)}${field('phone', 'ap-phone', '전화번호', true)}</div>
       ${field('address', 'ap-addr', '주소')}<div class="ap-logo">${img('logo', 'logo', '로고')}</div>`;
     case 'spacer': return '';
     case 'grid': {
@@ -659,7 +670,7 @@ function R(sec, E) {
       // 단계 수에 맞춰 동그라미 지름을 정한다 (안쪽 폭 910px, 연결선 최소 48px)
       const n = d.items.length, D = Math.round(Math.min(170, (910 - (n - 1) * 48) / n));
       return `<div class="steps v-${d.variant || 'line'}" style="--D:${D}px">${d.items.map((_, i) => `${i ? '<div class="step-line"></div>' : ''}
-        <div class="step${i === n - 1 ? ' last' : ''}"><div class="step-c">${field(`items.${i}.name`, 'step-name', '단계')}</div>${field(`items.${i}.desc`, 'step-desc', '설명 (비워두면 숨겨져요)')}</div>`).join('')}</div>`;
+        ${o('step.' + i, `step${i === n - 1 ? ' last' : ''}`)}<div class="step-c">${field(`items.${i}.name`, 'step-name', '단계')}</div>${field(`items.${i}.desc`, 'step-desc', '설명 (비워두면 숨겨져요)')}</div>`).join('')}</div>`;
     }
   }
   return '';
@@ -693,7 +704,7 @@ function renderPage() {
   const secs = S.post.doc.sections;
   page.innerHTML = secs.length ? secs.map((s, i) => secHTML(s, i, E)).join('')
     : `<div class="page-empty">섹션이 없어요.<br>아래 ‘맨 아래에 섹션 추가’를 눌러 시작하세요.</div>`;
-  if (E) page.insertAdjacentHTML('beforeend', `<div class="fgrip" id="fgrip"><button type="button" data-g="move" title="끌어서 옮기기">⠿ 끌어서 옮기기</button><button type="button" data-g="del" title="이 글자 지우기">지우기</button></div>`);
+  if (E) page.insertAdjacentHTML('beforeend', `<div class="fgrip" id="fgrip"><button type="button" data-g="move" title="끌어서 옮기기">⠿ 끌어서 옮기기</button><button type="button" data-g="del" title="지우기">지우기</button></div><div class="frs" id="frs" title="끌어서 크기 조절"></div><div class="snapv" id="snapv"></div>`);
   $('#addEnd').hidden = !E;
   hydrateImages(page);
   fitFree(page);
@@ -729,18 +740,31 @@ function fitStage() {
   wrap.style.height = (page.offsetHeight * S.scale) + 'px';
   placeGrip();
 }
-// 고른 글자 위에 '끌어서 옮기기 / 지우기' 손잡이를 붙인다 (표 칸 글자는 제외)
+// 고른 글자 · 사진 · 개체 위에 '끌어서 옮기기 / 지우기' 손잡이를, 사진 · 개체는 오른쪽 아래에 크기 손잡이를 붙인다 (표 칸 글자는 제외)
 function gripTarget() {
-  const s = S.sel; if (!s || s.kind !== 'field' || S.readOnly) return null;
-  const f = $(`#page .sec[data-sid="${s.sid}"] .f[data-f="${s.path}"]`);
-  if (!f || f.closest('.gt')) return null;
-  return {f, box: f.parentElement.classList.contains('eyebrow') ? f.parentElement : f};
+  const s = S.sel, key = layKey(s); if (!key || S.readOnly) return null;
+  const secEl = $(`#page .sec[data-sid="${s.sid}"]`); if (!secEl) return null;
+  let el = null;
+  if (s.kind === 'field') { el = secEl.querySelector(`.f[data-f="${s.path}"]`); if (!el || el.closest('.gt')) return null; }
+  if (s.kind === 'img') el = secEl.querySelector(`.img-slot[data-img="${s.path}"]`);
+  if (s.kind === 'obj') el = secEl.querySelector(`[data-obj="${s.key}"]`);
+  if (!el) return null;
+  return {f: el, key, secEl, sizable: s.kind !== 'field', box: el.parentElement.classList.contains('eyebrow') ? el.parentElement : el};
 }
 function placeGrip() {
-  const g = $('#fgrip'); if (!g) return;
-  const t = gripTarget(); g.classList.toggle('on', !!t); if (!t) return;
+  const g = $('#fgrip'), h = $('#frs'); if (!g) return;
+  const t = gripTarget(); g.classList.toggle('on', !!t); h?.classList.toggle('on', !!t?.sizable); if (!t) return;
   const pr = $('#page').getBoundingClientRect(), r = t.box.getBoundingClientRect();
   g.style.left = ((r.left - pr.left) / S.scale) + 'px'; g.style.top = ((r.top - pr.top) / S.scale - 4) + 'px';
+  $('#fgrip [data-g="del"]').textContent = t.sizable ? '지우기' : '지우기';
+  if (h && t.sizable) { h.style.left = ((r.right - pr.left) / S.scale) + 'px'; h.style.top = ((r.bottom - pr.top) / S.scale) + 'px'; }
+}
+// 가운데 자석: 끌고 있는 개체의 가운데가 대지 가운데(500px) 가까이 오면 붙이고 안내선을 보인다
+const SNAP = 10;
+function showSnap(secEl) {
+  const v = $('#snapv'); if (!v) return;
+  if (!secEl) { v.classList.remove('on'); return; }
+  v.classList.add('on'); v.style.top = secEl.offsetTop + 'px'; v.style.height = secEl.offsetHeight + 'px';
 }
 new ResizeObserver(() => fitStage()).observe($('#stage'));
 new ResizeObserver(() => fitStage()).observe($('#page'));
@@ -760,6 +784,7 @@ function applySel(panel = true) {
       if (s.kind === 'sec') secEl.classList.add('is-sel');
       if (s.kind === 'field') secEl.querySelector(`.f[data-f="${s.path}"]`)?.classList.add('is-sel');
       if (s.kind === 'img') secEl.querySelector(`.img-slot[data-img="${s.path}"]`)?.classList.add('is-sel');
+      if (s.kind === 'obj') secEl.querySelector(`[data-obj="${s.key}"]`)?.classList.add('is-sel');
       if (s.kind === 'icon') secEl.querySelector(`.bicon[data-icon="${s.i}"]`)?.classList.add('is-sel');
       if (s.kind === 'cells') $$('.gt td', secEl).forEach(td => { const r = +td.dataset.r, c = +td.dataset.c; if (r >= s.r0 && r <= s.r1 && c >= s.c0 && c <= s.c1) td.classList.add('csel'); });
       if (s.kind === 'free') {
@@ -914,7 +939,8 @@ page.addEventListener('click', e => {
   if (e.target.closest('.free-item')) return;
   if (S.justDragged || e.target.closest('.colrs')) return;
   const g = e.target.closest('#fgrip [data-g="del"]');
-  if (g) { const t = gripTarget(); if (t) hideField(S.sel.sid, S.sel.path); return; }
+  if (g) { const t = gripTarget(); if (t) hideField(S.sel.sid, t.key); return; }
+  if (e.target.closest('#frs')) return;
   const gtd = e.target.closest('.gt td');
   if (gtd) {
     if (!e.shiftKey && !e.target.closest('.f')) focusCell(gtd, true);
@@ -930,6 +956,8 @@ page.addEventListener('click', e => {
     select({sid: sec.id, kind: 'img', path}); return;
   }
   if (e.target.closest('.f')) return;
+  const ob = e.target.closest('[data-obj]');
+  if (ob) { select({sid: sec.id, kind: 'obj', key: ob.dataset.obj}); return; }
   select({sid: sec.id, kind: 'sec'});
 });
 page.addEventListener('focusin', e => {
@@ -1008,29 +1036,59 @@ function cellPointerDown(e, td) {
   };
   window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
 }
-// 템플릿 글자 옮기기: 자리는 그대로 두고 보이는 위치만 x, y만큼 민다
+// 템플릿 글자 · 사진 · 개체 옮기기: 자리는 그대로 두고 보이는 위치만 x, y만큼 민다
 function fieldDrag(e) {
   const t = gripTarget(); if (!t) return;
   e.preventDefault();
-  const sec = findSec(S.sel.sid), path = S.sel.path, before = snap();
-  sec.lay = sec.lay || {}; const L = sec.lay[path] = sec.lay[path] || {};
+  const sec = findSec(S.sel.sid), before = snap();
+  sec.lay = sec.lay || {}; const L = sec.lay[t.key] = sec.lay[t.key] || {};
   const ox = L.x || 0, oy = L.y || 0, sx = e.clientX, sy = e.clientY; let moved = false;
+  const pr = $('#page').getBoundingClientRect(), r0 = t.box.getBoundingClientRect();
+  const cx0 = (r0.left + r0.width / 2 - pr.left) / S.scale; // 지금 가운데 (x = ox 일 때)
   const mv = ev => {
     const dx = (ev.clientX - sx) / S.scale, dy = (ev.clientY - sy) / S.scale;
     if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
-    moved = true; L.x = Math.round(ox + dx); L.y = Math.round(oy + dy);
+    moved = true;
+    let nx = Math.round(ox + dx), ny = Math.round(oy + dy), snapped = false;
+    const cx = cx0 + (nx - ox);
+    if (Math.abs(cx - 500) <= SNAP) { nx = Math.round(nx + 500 - cx); snapped = true; }
+    else if (Math.abs(nx) <= 6) nx = 0;
+    if (Math.abs(ny) <= 6) ny = 0;
+    L.x = nx; L.y = ny;
     Object.assign(t.box.style, {position: 'relative', left: L.x + 'px', top: L.y + 'px'}); placeGrip();
+    showSnap(snapped ? t.secEl : null);
   };
   const up = () => {
     window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+    showSnap(null);
     if (moved) { pushHist(before); changed(); renderPanel(); }
   };
   window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
 }
-function hideField(sid, path) {
+// 크기 조절: 가운데를 기준으로 키우고 줄인다 (오른쪽 아래 모서리를 끈 만큼 양쪽으로 커짐)
+function objResize(e) {
+  const t = gripTarget(); if (!t || !t.sizable) return;
+  e.preventDefault();
+  const sec = findSec(S.sel.sid), before = snap();
+  sec.lay = sec.lay || {}; const L = sec.lay[t.key] = sec.lay[t.key] || {};
+  const s0 = L.s || 1, w = t.box.getBoundingClientRect().width, sx = e.clientX; let moved = false;
+  const mv = ev => {
+    const dx = ev.clientX - sx; if (!moved && Math.abs(dx) < 2) return;
+    moved = true;
+    L.s = +Math.max(.2, Math.min(5, s0 * (w + 2 * dx) / w)).toFixed(3);
+    t.box.style.transform = `scale(${L.s})`; placeGrip();
+  };
+  const up = () => {
+    window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+    if (moved) { pushHist(before); changed(); fitStage(); renderPanel(); }
+  };
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+}
+function hideField(sid, key) {
   const sec = findSec(sid); if (!sec) return;
-  commit(() => { sec.lay = sec.lay || {}; sec.lay[path] = {...(sec.lay[path] || {}), hide: true}; S.sel = {sid, kind: 'sec'}; });
-  toast('글자를 지웠어요 · 섹션 설정에서 다시 보이게 할 수 있어요');
+  const what = S.sel?.kind === 'field' ? '글자' : S.sel?.kind === 'img' ? '사진' : '개체';
+  commit(() => { sec.lay = sec.lay || {}; sec.lay[key] = {...(sec.lay[key] || {}), hide: true}; S.sel = {sid, kind: 'sec'}; });
+  toast(`${what}를 지웠어요 · 섹션 설정에서 되살릴 수 있어요`);
 }
 function colResize(e, h) {
   e.preventDefault();
@@ -1173,6 +1231,7 @@ page.addEventListener('pointerdown', e => {
   const crs = e.target.closest('.colrs');
   if (crs) { colResize(e, crs); return; }
   if (e.target.closest('#fgrip [data-g="move"]')) { fieldDrag(e); return; }
+  if (e.target.closest('#frs')) { objResize(e); return; }
   const gtd = e.target.closest('.gt td');
   if (gtd && e.button === 0) { cellPointerDown(e, gtd); return; }
   const itemEl = e.target.closest('.free-item'); if (!itemEl) return;
@@ -1191,11 +1250,17 @@ page.addEventListener('pointerdown', e => {
     if (handle) {
       it.w = Math.max(40, Math.round(o.w + dx));
       if (it.kind === 'image') it.h = Math.max(20, Math.round(ev.shiftKey ? o.h + dy : o.h * (it.w / o.w)));
-    } else { it.x = Math.round(o.x + dx); it.y = Math.round(o.y + dy); }
+    } else {
+      it.x = Math.round(o.x + dx); it.y = Math.round(o.y + dy);
+      const snapped = Math.abs(it.x + it.w / 2 - 500) <= SNAP;
+      if (snapped) it.x = Math.round(500 - it.w / 2);
+      showSnap(snapped ? itemEl.closest('.sec') : null);
+    }
     Object.assign(itemEl.style, {left: it.x + 'px', top: it.y + 'px', width: it.w + 'px', ...(it.kind === 'image' ? {height: it.h + 'px'} : {})});
   };
   const up = () => {
     window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+    showSnap(null);
     if (moved) { pushHist(before); changed(); fitFree(page); fitStage(); renderPanel(); }
   };
   window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
@@ -1331,6 +1396,7 @@ function renderPanel() {
   if (s.kind === 'field') { P.innerHTML = panelText(sec, s); return; }
   if (s.kind === 'cells') { P.innerHTML = panelCells(sec, s); return; }
   if (s.kind === 'icon') { P.innerHTML = panelIcon(sec, s); return; }
+  if (s.kind === 'obj') { P.innerHTML = panelObj(sec, s); return; }
   if (s.kind === 'img') { P.innerHTML = panelImg(sec, s); return; }
   if (s.kind === 'free') { const it = sec.free.find(x => x.id === s.fid); if (!it) { S.sel = null; P.innerHTML = panelHome(); return; } P.innerHTML = it.kind === 'text' ? panelText(sec, s, it) : panelFreeImg(sec, it); return; }
   P.innerHTML = panelSec(sec);
@@ -1395,10 +1461,10 @@ function panelSec(sec) {
       `<button type="button" title="${n}" aria-label="${n}" data-set="sec.bg" data-v="${v}" style="background:${c}" class="${bg === v ? 'on' : ''}"></button>`).join('')}</div>`;
   if (sec.type !== 'hero' && sec.type !== 'spacer') h += `<h3>여백</h3><div class="row"><span class="lab">위</span>${rng('sec.pt', 0, 240, 2, pt, 'px')}</div><div class="row"><span class="lab">아래</span>${rng('sec.pb', 0, 240, 2, pb, 'px')}</div>`;
   h += `<h3>이 섹션에 넣기</h3><div class="grid2"><button class="btn" type="button" data-act="addtext">＋ 글상자</button><button class="btn" type="button" data-act="addimg">＋ 사진</button></div>
-    <p class="hint" style="margin-top:8px">글상자와 사진은 자유롭게 끌어서 놓을 수 있어요. 원래 있던 글자도 클릭하면 위에 ‘끌어서 옮기기’ 손잡이가 생겨요.</p>`;
+    <p class="hint" style="margin-top:8px">글상자와 사진은 자유롭게 끌어서 놓을 수 있어요. 원래 있던 글자 · 사진 · 상자도 클릭하면 위에 ‘끌어서 옮기기’ 손잡이가 생기고, 가운데 근처에 놓으면 자석처럼 가운데에 붙어요.</p>`;
   const hidden = Object.values(sec.lay || {}).filter(L => L.hide).length;
-  const moved = Object.values(sec.lay || {}).filter(L => !L.hide && (L.x || L.y || L.mt != null || L.mb != null)).length;
-  if (hidden || moved) h += `<h3>글자 위치</h3><div class="grid2">${hidden ? `<button class="btn" type="button" data-act="layunhide">지운 글자 ${hidden}개 되살리기</button>` : ''}${moved ? `<button class="btn" type="button" data-act="layresetall">옮긴 글자 ${moved}개 제자리로</button>` : ''}</div>`;
+  const moved = Object.values(sec.lay || {}).filter(L => !L.hide && (L.x || L.y || L.mt != null || L.mb != null || (L.s && L.s !== 1))).length;
+  if (hidden || moved) h += `<h3>옮기거나 지운 것</h3><div class="grid2">${hidden ? `<button class="btn" type="button" data-act="layunhide">지운 것 ${hidden}개 되살리기</button>` : ''}${moved ? `<button class="btn" type="button" data-act="layresetall">바꾼 것 ${moved}개 제자리로</button>` : ''}</div>`;
   return h;
 }
 function panelIcon(sec, s) {
@@ -1409,14 +1475,22 @@ function panelIcon(sec, s) {
     <p class="hint" style="margin-top:8px">PNG·SVG 아이콘 파일도 올릴 수 있어요. 배경이 투명한 파일이 잘 어울려요.</p>
     <h3>섹션</h3><button class="btn" type="button" data-act="selsec">이 섹션 고르기 (아이콘 크기 · 간격)</button>`;
 }
-function layPanel(sec, path, el) {
+function layPanel(sec, path, el, what = '글자') {
   const box = el.closest('.eyebrow') || el, cs = getComputedStyle(box), L = sec.lay?.[path] || {};
   const mt = Math.round(parseFloat(cs.marginTop) || 0), mb = Math.round(parseFloat(cs.marginBottom) || 0);
-  return `<h3>위치 · 여백</h3>
-    <p class="hint">대지에서 글자 위의 ‘끌어서 옮기기’ 손잡이로 자유롭게 옮길 수 있어요.</p>
+  const changedAny = L.x || L.y || L.mt != null || L.mb != null || (L.s && L.s !== 1);
+  return `<h3>${what === '글자' ? '위치 · 여백' : '크기 · 위치 · 여백'}</h3>
+    <p class="hint">대지에서 위의 ‘끌어서 옮기기’ 손잡이로 옮겨요${what === '글자' ? '' : ', 오른쪽 아래 네모를 끌면 크기가 바뀌어요'}. 가운데 근처에 놓으면 자석처럼 가운데에 붙어요.</p>
+    ${what === '글자' ? '' : `<div class="row"><span class="lab">크기</span>${rng('lay.s', .2, 3, .05, L.s || 1, '배')}</div>`}
     <div class="row"><span class="lab">위 여백</span>${rng('lay.mt', -80, 240, 1, mt, 'px')}</div>
     <div class="row"><span class="lab">아래 여백</span>${rng('lay.mb', -80, 240, 1, mb, 'px')}</div>
-    <div class="grid2" style="margin-top:8px"><button class="btn" type="button" data-act="layreset"${L.x || L.y || L.mt != null || L.mb != null ? '' : ' disabled'}>제자리로</button><button class="btn danger" type="button" data-act="layhide">이 글자 지우기</button></div>`;
+    <div class="grid2" style="margin-top:8px"><button class="btn" type="button" data-act="layreset"${changedAny ? '' : ' disabled'}>제자리로</button><button class="btn danger" type="button" data-act="layhide">이 ${what} 지우기</button></div>`;
+}
+function panelObj(sec, s) {
+  const el = $(`#page .sec[data-sid="${sec.id}"] [data-obj="${s.key}"]`);
+  return `<p class="ptitle">${objName(s.key)}</p><p class="hint">안의 글자는 클릭해서 바로 고칠 수 있어요.</p>
+    ${el ? layPanel(sec, s.key, el, objName(s.key)) : ''}
+    <h3>섹션</h3><button class="btn" type="button" data-act="selsec">이 섹션 고르기 (${TYPES[sec.type].name})</button>`;
 }
 function textEl(sec, s) {
   const secEl = $(`.sec[data-sid="${sec.id}"]`); if (!secEl) return null;
@@ -1502,6 +1576,7 @@ function panelImg(sec, s) {
     ${im.src ? `<h3>맞춤</h3>${seg('img.fit', [['cover', '칸에 꽉 채우기'], ['contain', '전체 보이기']], im.fit || 'cover')}
     <h3>확대</h3>${rng('img.zoom', 1, 3, .05, im.zoom || 1, '배')}
     <h3>보이는 위치</h3><div class="row"><span class="lab">가로</span>${rng('img.px', 0, 100, 1, im.px ?? 50, '%')}</div><div class="row"><span class="lab">세로</span>${rng('img.py', 0, 100, 1, im.py ?? 50, '%')}</div>` : ''}
+    ${(() => { const el = $(`#page .sec[data-sid="${sec.id}"] .img-slot[data-img="${s.path}"]`); return el ? layPanel(sec, s.path, el, s.path === 'logo' ? '로고' : '사진') : ''; })()}
     <h3>섹션</h3><button class="btn" type="button" data-act="selsec">이 섹션 고르기 (${TYPES[sec.type].name})</button>`;
 }
 function panelFreeImg(sec, it) {
@@ -1538,7 +1613,7 @@ function setVal(k, raw, live) {
       forCells(sec.d, S.sel, x => { if (val === '' || val === false || val == null) delete x[p]; else x[p] = val; });
     }
     else if (k === 'rows.h') { for (let r = S.sel.r0; r <= S.sel.r1; r++) sec.d.rh[r] = v; }
-    else if (k.startsWith('lay.')) { sec.lay = sec.lay || {}; const L = sec.lay[S.sel.path] = sec.lay[S.sel.path] || {}; L[k.slice(4)] = v; }
+    else if (k.startsWith('lay.')) { const key = layKey(S.sel); sec.lay = sec.lay || {}; const L = sec.lay[key] = sec.lay[key] || {}; L[k.slice(4)] = v; }
     // 아이콘을 켜면 비어 있는 동그라미에 글자에 맞는 아이콘을 채운다
     if (k === 'sec.d.showIcon' && v === true) { const d = sec.d; d.icons = d.items.map((t, i) => d.icons?.[i] || autoIcon(t)); }
   };
@@ -1587,10 +1662,10 @@ P.addEventListener('click', async e => {
     case 'iconimg': { const i = S.sel.i, f = await pickFile(); if (!f) break; const w = toast('아이콘을 올리는 중…', 0);
       try { const r = await ingest(f); commit(() => { sec.d.icons = sec.d.icons || []; sec.d.icons[i] = 'img:' + r.src; S.sel = {sid: sec.id, kind: 'icon', i}; }); } catch (er) { toast(er.message); } w.remove(); break; }
     case 'autoicons': commit(() => { sec.d.icons = sec.d.items.map(autoIcon); }); toast('글자에 맞는 아이콘으로 다시 골랐어요'); break;
-    case 'layreset': commit(() => { const L = sec.lay?.[S.sel.path]; if (L) { delete L.x; delete L.y; delete L.mt; delete L.mb; } }); break;
-    case 'layhide': hideField(sec.id, S.sel.path); break;
+    case 'layreset': commit(() => { const L = sec.lay?.[layKey(S.sel)]; if (L) { delete L.x; delete L.y; delete L.mt; delete L.mb; delete L.s; } }); break;
+    case 'layhide': hideField(sec.id, layKey(S.sel)); break;
     case 'layunhide': commit(() => Object.values(sec.lay || {}).forEach(L => { delete L.hide; })); break;
-    case 'layresetall': commit(() => Object.values(sec.lay || {}).forEach(L => { delete L.x; delete L.y; delete L.mt; delete L.mb; })); break;
+    case 'layresetall': commit(() => Object.values(sec.lay || {}).forEach(L => { delete L.x; delete L.y; delete L.mt; delete L.mb; delete L.s; })); break;
     case 'csize': { const n = Math.max(8, (parseFloat($('#csizeIn').value) || sec.d.fs) + +b.dataset.v); setVal('cell.size', n, false); break; }
     default: if (a?.startsWith('g-')) gridAction(a, sec);
   }
