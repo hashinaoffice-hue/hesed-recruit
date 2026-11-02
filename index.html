@@ -150,6 +150,8 @@ button{cursor:pointer}
 .img-slot.fit-contain,.img-slot.logo{background:transparent}
 .img-slot img{width:100%;height:100%;object-fit:cover;display:block}
 .img-slot.fit-contain img,.img-slot.logo img{object-fit:contain}
+.img-slot.logo{height:auto!important;min-height:18px}
+.img-slot.logo img{height:auto}
 .bg-black .img-slot.empty{background:#2a2a2a}
 
 .t-hero{height:521px}
@@ -159,6 +161,17 @@ button{cursor:pointer}
 .eyebrow .dia{margin-left:1.1px}
 .hero-title{font:700 80px/1.2 'Pretendard',sans-serif;letter-spacing:-.012em;margin-top:11px}
 .hero-grid{position:absolute;left:532.5px;top:55.6px;display:grid;grid-template-columns:204.8px 204.8px;grid-auto-rows:204.8px;column-gap:5.75px;row-gap:6.14px}
+
+.cov-a{position:absolute}
+.cov-bg{inset:0}
+.cov-bg .img-slot{width:100%;height:100%}
+.cov-shade{position:absolute;inset:0;pointer-events:none}
+.cov-logo{left:796.4px;top:54.2px;width:150.6px}
+.cov-eye{left:60px;top:228px}
+.cov-eye .eyebrow{font-size:63.5px;gap:20px;letter-spacing:.05em}
+.cov-eye .dia{width:17.05px;height:17.05px;margin-left:3.5px}
+.cov-title{right:54px;top:281px;text-align:right}
+.cov-title-t{font:700 82.51px/99.02px 'Pretendard',sans-serif;letter-spacing:.007em}
 
 .t-intro{padding:58px 0 25px}
 .intro-head{font-size:32px;line-height:1.3;text-align:center;margin:0 80px}
@@ -326,7 +339,7 @@ button{cursor:pointer}
 
 <div class="app">
   <header class="bar">
-    <div class="brand"><i></i><span>헤세드 채용공고</span></div>
+    <div class="brand"><i></i><span>채용공고 편집기</span></div>
     <button class="btn" id="btnList" type="button">공고 목록</button>
     <input class="title-in" id="postTitle" aria-label="공고 이름" placeholder="공고 이름 (예: 홀 직원 채용 11월)">
     <span class="save" id="saveState"></span>
@@ -369,7 +382,7 @@ const S = {
 
 /* ---------------- 섹션 정의 ---------------- */
 const TYPES = {
-  hero:   {name: '메인 비주얼', desc: '검정 배경 · 로고 · 제목 · 사진 4장', bg: 'black'},
+  hero:   {name: '브랜드 표지', desc: '브랜드별 표지 · 로고 · 제목 · 사진', bg: 'black'},
   intro:  {name: '인사말', desc: '명조 제목과 브랜드 소개', bg: 'white'},
   pill:   {name: '섹션 제목', desc: '둥근 테두리 제목 (모집부문, 근무조건 등)', bg: 'white'},
   jobs:   {name: '모집 직무 카드', desc: '직무 이름 · 인원 · 하는 일', bg: 'white', list: 'items'},
@@ -383,6 +396,16 @@ const TYPES = {
   spacer: {name: '여백', desc: '섹션 사이 빈 공간', bg: 'white'},
 };
 const IMG = p => ({src: p ? 'file:' + p : '', zoom: 1, px: 50, py: 50, fit: 'cover'});
+// 브랜드마다 표지 모양(layout)과 로고 · 강조색 · 기본 문구가 다르다. 브랜드를 늘릴 때는 여기에 한 묶음을 더한다.
+const BRANDS = {
+  hesed: {name: '카츠헤세드', acc: '#ffc200', postTitle: '카츠헤세드 직원 채용', logoW: 'img/logo-white.svg', logoK: 'img/logo-black.svg',
+    intro: '‘카츠 헤세드’는 ‘카츠’와 ‘헤세드’의 합성어입니다.\n‘헤세드’는 일반적으로 은혜, 자비라는 의미를 가지지만 그 속에는 사랑이라는 의미를 담고 있습니다.\n음식에 사랑과 정성을 담아 헤세드를 찾아주시는 손님들께 사랑을 전하고자는 마음이 담겨 있습니다.',
+    cover: () => ({layout: 'grid', logo: IMG('img/logo-white.svg'), title: '카츠헤세드\n직원 채용', photos: [1, 2, 3, 4].map(i => IMG(`img/hero-${i}.jpg`))})},
+  karis: {name: '카리스 성수', acc: '#ffce00', postTitle: '카리스 성수 직원 채용', logoW: 'img/karis-white.svg', logoK: 'img/karis-black.svg',
+    intro: '카리스 성수를 소개하는 글을 입력하세요.\n브랜드의 뜻이나 매장 분위기를 세 줄 안으로 쓰면 잘 어울려요.',
+    cover: () => ({layout: 'full', logo: IMG('img/karis-white.svg'), title: '카리스 성수\n직원 채용', bg: {...IMG('img/karis-cover.jpg'), py: 61}, shade: 20})},
+};
+const curBrand = () => S.post?.doc?.brand || 'hesed';
 const NEW_ITEM = {
   jobs: () => ({name: '새 직무', count: '0명', desc: '· 하는 일을 입력하세요'}),
   table: () => ({k: '항목', v: '내용을 입력하세요'}),
@@ -446,16 +469,15 @@ const OBJ_NAMES = {contact: '연락처 상자', pill: '제목 상자', card: '�
 const objName = key => OBJ_NAMES[key.split('.')[0]] || '개체';
 const fieldStyle = (sec, path, noLay) => styleCSS(sec.st[styleKey(path)]) + (noLay ? '' : layCSS(sec.lay?.[path]));
 
-function makeSection(type) {
+function makeSection(type, brand = curBrand()) {
   const s = {id: uid(), type, bg: null, pt: null, pb: null, st: {}, free: [], d: {}};
   switch (type) {
-    case 'hero': s.d = {logo: IMG('img/logo-white.svg'), eyebrow: 'RECRUIT', title: '카츠헤세드\n직원 채용', photos: [1, 2, 3, 4].map(i => IMG(`img/hero-${i}.jpg`))}; break;
-    case 'intro': s.d = {headline: '함께 근무할 직원을 모집합니다.', logo: IMG('img/logo-black.svg'),
-      body: '‘카츠 헤세드’는 ‘카츠’와 ‘헤세드’의 합성어입니다.\n‘헤세드’는 일반적으로 은혜, 자비라는 의미를 가지지만 그 속에는 사랑이라는 의미를 담고 있습니다.\n음식에 사랑과 정성을 담아 헤세드를 찾아주시는 손님들께 사랑을 전하고자는 마음이 담겨 있습니다.'}; break;
+    case 'hero': s.d = {eyebrow: 'RECRUIT', ...BRANDS[brand].cover()}; break;
+    case 'intro': s.d = {headline: '함께 근무할 직원을 모집합니다.', logo: IMG(BRANDS[brand].logoK), body: BRANDS[brand].intro}; break;
     case 'pill': s.d = {text: '섹션 제목', variant: 'line'}; break;
     case 'jobs': s.d = {items: [
       {name: '홀 서빙', count: '0명', desc: '· 주문 응대와 서빙\n· 테이블 정리와 매장 청결 관리\n· 포장 주문 확인'},
-      {name: '주방 보조', count: '0명', desc: '· 돈카츠 튀김과 조리 보조\n· 재료 손질과 소스 준비\n· 주방 위생 관리'}]}; break;
+      {name: '주방 보조', count: '0명', desc: `· ${brand === 'hesed' ? '돈카츠 튀김과 조리 보조' : '조리와 조리 보조'}\n· 재료 손질과 소스 준비\n· 주방 위생 관리`}]}; break;
     case 'table': s.d = {rows: [
       {k: '근무형태', v: '정규직 · 아르바이트'},
       {k: '근무시간', v: '11:00 ~ 21:00 (시간 협의 가능)'},
@@ -469,7 +491,7 @@ function makeSection(type) {
     case 'text': s.d = {title: '작은 제목을 입력하세요', body: '설명 글을 입력하세요.\n여러 줄로 쓸 수 있어요.'}; break;
     case 'photo': s.d = {n: 2, ratio: '4/3', full: false, photos: [IMG(), IMG(), IMG()], caption: ''}; break;
     case 'apply': s.d = {eyebrow: 'HOW TO APPLY', title: '지원방법', body: '전화 또는 문자로 이름 · 나이 · 지원 부문을 남겨주세요.\n확인 후 개별로 연락드립니다.',
-      label: '채용 담당', phone: '010-0000-0000', address: '매장 주소를 입력하세요', logo: IMG('img/logo-white.svg')}; break;
+      label: '채용 담당', phone: '010-0000-0000', address: '매장 주소를 입력하세요', logo: IMG(BRANDS[brand].logoW)}; break;
     case 'spacer': s.d = {h: 80}; break;
     case 'grid': {
       const H = {bg: '#f3f2ee', b: true};
@@ -560,12 +582,37 @@ function gDelCol(d, k) {
   d.rows.forEach(rw => rw.splice(k, 1));
   const w = d.cols.splice(k, 1)[0]; d.cols[Math.max(0, k - 1)] += w;
 }
-function templateDoc() {
-  const p1 = makeSection('pill'); p1.d.text = '모집부문';
-  const p2 = makeSection('pill'); p2.d.text = '근무조건';
-  return {sections: [makeSection('hero'), makeSection('intro'), p1, makeSection('jobs'), makeSection('badges'), p2, makeSection('table'), makeSection('apply')]};
+function templateDoc(brand) {
+  const mk = t => makeSection(t, brand);
+  const p1 = mk('pill'); p1.d.text = '모집부문';
+  const p2 = mk('pill'); p2.d.text = '근무조건';
+  return {brand, sections: [mk('hero'), mk('intro'), p1, mk('jobs'), mk('badges'), p2, mk('table'), mk('apply')]};
 }
-const newPostData = () => ({title: '카츠헤세드 직원 채용', doc: templateDoc()});
+const newPostData = (brand = 'hesed') => ({title: BRANDS[brand].postTitle, doc: templateDoc(brand)});
+// 표지 브랜드 바꾸기: 표지를 그 브랜드 모양으로 갈고, 로고 · 소개 글 · 공고 이름 중 기본값 그대로인 것만 함께 바꾼다.
+// 바꾸기 전 표지는 보관해 두어 그 브랜드로 돌아오면 고쳤던 내용이 되살아난다.
+function switchBrand(key) {
+  const doc = S.post.doc, old = doc.brand || 'hesed'; if (old === key) return;
+  const A = BRANDS[old], B = BRANDS[key];
+  commit(() => {
+    doc.sections.forEach(s => {
+      if (s.type === 'hero') {
+        const stash = s.stash || {}, back = stash[key];
+        stash[old] = {d: s.d, st: s.st, lay: s.lay}; delete stash[key];
+        if (back) Object.assign(s, back);
+        else { s.d = {eyebrow: s.d.eyebrow, ...B.cover()}; s.st = {}; s.lay = {}; }
+        s.stash = stash;
+        return;
+      }
+      if (s.d.logo?.src === 'file:' + A.logoK) s.d.logo.src = 'file:' + B.logoK;
+      if (s.d.logo?.src === 'file:' + A.logoW) s.d.logo.src = 'file:' + B.logoW;
+      if (s.type === 'intro' && s.d.body === A.intro) s.d.body = B.intro;
+    });
+    doc.brand = key;
+    if (S.post.title === A.postTitle) { S.post.title = B.postTitle; $('#postTitle').value = B.postTitle; }
+  });
+  toast(`표지를 ${B.name}(으)로 바꿨어요 · Ctrl+Z로 되돌릴 수 있어요`);
+}
 
 /* ---------------- 경로 유틸 ---------------- */
 const getP = (o, p) => p.split('.').reduce((a, k) => a == null ? a : a[k], o);
@@ -621,7 +668,13 @@ function R(sec, E) {
   };
   const d = sec.d;
   switch (sec.type) {
-    case 'hero': return `
+    case 'hero': if (d.layout === 'full') return `
+      <div class="cov-a cov-bg">${img('bg', '', '배경 사진')}</div>
+      <div class="cov-shade" style="background:rgba(0,0,0,${(d.shade ?? 20) / 100})"></div>
+      <div class="cov-a cov-logo">${img('logo', 'logo', '로고')}</div>
+      <div class="cov-a cov-eye">${eyebrow('RECRUIT')}</div>
+      <div class="cov-a cov-title">${field('title', 'cov-title-t', '제목')}</div>`;
+      return `
       <div class="hero-left">${img('logo', 'hero-logo logo', '로고')}
         <div class="hero-copy">${eyebrow('RECRUIT')}
         ${field('title', 'hero-title', '제목')}</div></div>
@@ -694,7 +747,8 @@ function secHTML(sec, i, E) {
   const chrome = E ? `<div class="sec-tag">${TYPES[sec.type].name}</div>
     <div class="sec-tools"><button type="button" data-tool="up" title="위로">↑</button><button type="button" data-tool="down" title="아래로">↓</button><button type="button" data-tool="dup">복제</button><button type="button" class="del" data-tool="del">삭제</button></div>
     <button type="button" class="add-btn" data-add="${i + 1}">＋ 여기에 섹션 추가</button>` : '';
-  return `<section class="sec t-${sec.type} bg-${secBg(sec)}${cls}" data-sid="${sec.id}" style="${pad}${extra}">${R(sec, E)}${freeHTML(sec, E)}${chrome}</section>`;
+  const acc = BRANDS[curBrand()].acc, accCSS = acc !== BRANDS.hesed.acc && secBg(sec) !== 'yellow' ? `--acc:${acc};` : '';
+  return `<section class="sec t-${sec.type} bg-${secBg(sec)}${cls}" data-sid="${sec.id}" style="${accCSS}${pad}${extra}">${R(sec, E)}${freeHTML(sec, E)}${chrome}</section>`;
 }
 
 function renderPage() {
@@ -1418,6 +1472,7 @@ function renderPanelListLabels(sec) {
   const lis = $$('#panel .items li span'); const key = TYPES[sec.type].list; if (!key || !lis.length) return;
   sec.d[key].forEach((it, i) => { if (lis[i]) lis[i].textContent = listLabel(sec, it); });
 }
+const brandSeg = () => `<div class="seg">${Object.entries(BRANDS).map(([k, v]) => `<button type="button" data-act="brand" data-v="${k}" class="${curBrand() === k ? 'on' : ''}">${v.name}</button>`).join('')}</div>`;
 function panelSec(sec) {
   const t = TYPES[sec.type], d = sec.d, bg = secBg(sec);
   const cs = getComputedStyle($(`.sec[data-sid="${sec.id}"]`) || document.body);
@@ -1430,6 +1485,11 @@ function panelSec(sec) {
     h += `<h3>${sec.type === 'jobs' ? '직무' : sec.type === 'table' ? '항목' : sec.type === 'steps' ? '단계' : '동그라미'} ${items.length}개</h3><ul class="items">${items.map((it, i) => `<li><span>${esc(listLabel(sec, it))}</span>
       <button type="button" data-act="li" data-v="up" data-i="${i}" aria-label="위로" title="위로">↑</button><button type="button" data-act="li" data-v="down" data-i="${i}" aria-label="아래로" title="아래로">↓</button><button type="button" data-act="li" data-v="del" data-i="${i}" aria-label="삭제" title="삭제">✕</button></li>`).join('')}</ul>
       <div class="row" style="margin-top:8px"><button class="btn" type="button" data-act="li" data-v="add">＋ 추가</button></div>`;
+  }
+  if (sec.type === 'hero') {
+    h += `<h3>브랜드 표지</h3>${brandSeg()}
+      <p class="hint" style="margin-top:8px">표지 모양과 함께 로고, 강조색, 기본 소개 글도 그 브랜드로 바뀌어요. 직접 고친 글은 그대로 남아요.</p>`;
+    if (d.layout === 'full') h += `<div class="row" style="margin-top:8px"><span class="lab">사진 어둡게</span>${rng('sec.d.shade', 0, 80, 1, d.shade ?? 20, '%')}</div>`;
   }
   if (sec.type === 'pill') h += `<h3>모양</h3>${seg('sec.d.variant', [['line', '테두리'], ['black', '검정'], ['yellow', '노랑']], d.variant || 'line')}`;
   if (sec.type === 'badges') h += `<h3>한 줄에 몇 개</h3>${seg('sec.d.perRow', [[0, '자동'], [2, '2'], [3, '3'], [4, '4'], [5, '5'], [6, '6']], d.perRow || 0)}
@@ -1571,7 +1631,9 @@ function gridAction(a, sec) {
 }
 function panelImg(sec, s) {
   const im = getP(sec.d, s.path) || {};
-  return `<p class="ptitle">사진</p><p class="hint">사진 칸을 한 번 더 클릭하거나, 파일을 끌어다 놓아도 바꿀 수 있어요.</p>
+  // 카리스 표지는 사진이 표지 전체를 덮어서, 사진을 고른 상태에서도 브랜드를 바꿀 수 있게 한다
+  const brandRow = sec.type === 'hero' ? `<h3>브랜드 표지</h3>${brandSeg()}` : '';
+  return `<p class="ptitle">사진</p><p class="hint">사진 칸을 한 번 더 클릭하거나, 파일을 끌어다 놓아도 바꿀 수 있어요.</p>${brandRow}
     <div class="grid2" style="margin-top:12px"><button class="btn primary" type="button" data-act="replace">사진 바꾸기</button><button class="btn" type="button" data-act="clearimg"${im.src ? '' : ' disabled'}>비우기</button></div>
     ${im.src ? `<h3>맞춤</h3>${seg('img.fit', [['cover', '칸에 꽉 채우기'], ['contain', '전체 보이기']], im.fit || 'cover')}
     <h3>확대</h3>${rng('img.zoom', 1, 3, .05, im.zoom || 1, '배')}
@@ -1658,6 +1720,7 @@ P.addEventListener('click', async e => {
     case 'addtext': addFreeText(sec.id); break;
     case 'addimg': addFreeImage(sec.id); break;
     case 'export': openExport(); break;
+    case 'brand': switchBrand(b.dataset.v); break;
     case 'seticon': commit(() => { sec.d.icons = sec.d.icons || []; sec.d.icons[S.sel.i] = b.dataset.v; }); break;
     case 'iconimg': { const i = S.sel.i, f = await pickFile(); if (!f) break; const w = toast('아이콘을 올리는 중…', 0);
       try { const r = await ingest(f); commit(() => { sec.d.icons = sec.d.icons || []; sec.d.icons[i] = 'img:' + r.src; S.sel = {sid: sec.id, kind: 'icon', i}; }); } catch (er) { toast(er.message); } w.remove(); break; }
@@ -1700,7 +1763,7 @@ function renderList() {
   const c = $('#listCard'); if (!c) return;
   const canMake = !S.noWrite;
   let h = `<div class="mh"><h2>채용공고 목록</h2><button class="btn sm" type="button" data-close>닫기</button></div>
-    ${canMake ? `<button class="btn primary" type="button" data-lact="new">＋ 헤세드 기본 양식으로 새 공고</button>` : ''}`;
+    ${canMake ? `<div class="row">${Object.entries(BRANDS).map(([k, v]) => `<button class="btn primary" type="button" data-lact="new" data-brand="${k}">＋ ${v.name} 새 공고</button>`).join('')}</div>` : ''}`;
   if (S.cloud) h += `<p class="hint" style="margin-top:12px">내 이름: <b>${esc(S.myName)}</b> · 공고에 마지막으로 고친 사람으로 표시돼요. <button class="btn sm" type="button" data-lact="rename">이름 바꾸기</button></p>`;
   if (!S.db) h += `<p class="hint" style="margin-top:14px">로그인한 상태에서 열면 직원들과 공고 목록을 함께 쓸 수 있어요. 지금은 이 브라우저에만 저장돼요.</p>`;
   else if (!S.posts.length) h += `<p class="empty">아직 저장된 공고가 없어요.<br>지금 화면에서 수정하면 첫 공고로 자동 저장돼요.</p>`;
@@ -1713,7 +1776,7 @@ function renderList() {
 $('#modal').addEventListener('click', async e => {
   const b = e.target.closest('[data-lact]'); if (!b) return;
   const id = b.closest('li')?.dataset.id; const a = b.dataset.lact;
-  if (a === 'new') { closeModal(); await newPost(newPostData(), {save: true}); toast('새 공고를 만들었어요'); }
+  if (a === 'new') { closeModal(); await newPost(newPostData(b.dataset.brand), {save: true}); toast('새 공고를 만들었어요'); }
   if (a === 'open') { closeModal(); openPost(id); }
   if (a === 'rename') { await askLogin(true); renderList(); return; }
   if (a === 'dup') { const p = await fullPost(id); if (!p) { toast('공고를 불러오지 못했어요'); return; } closeModal(); await newPost({title: (p.title || '') + ' 복사본', doc: clone(p.doc)}, {save: true}); toast('복사본을 만들었어요'); }
@@ -1764,7 +1827,8 @@ async function buildExportNode() {
   const root = $('#exportRoot');
   root.innerHTML = `<div class="page">${S.post.doc.sections.map((s, i) => secHTML(s, i, false)).join('')}</div>`;
   await hydrateImages(root);
-  await Promise.all($$('img', root).map(im => im.decode().catch(() => {})));
+  // 창이 가려져 있으면 decode가 끝나지 않을 수 있어서 오래 기다리지 않는다
+  await Promise.all($$('img', root).map(im => Promise.race([im.decode().catch(() => {}), new Promise(r => setTimeout(r, 4000))])));
   await document.fonts.ready;
   const node = root.firstElementChild;
   fitFree(root);
@@ -1914,7 +1978,7 @@ function cloudDB() {
 }
 function askLogin(renameOnly = false, notice = '') {
   return new Promise(resolve => {
-    openModal(`<div class="mcard" role="dialog" aria-label="시작하기"><div class="mh"><h2>${renameOnly ? '이름 바꾸기' : '헤세드 채용공고 편집기'}</h2>${renameOnly ? '<button class="btn sm" type="button" id="lgCancel">취소</button>' : ''}</div>
+    openModal(`<div class="mcard" role="dialog" aria-label="시작하기"><div class="mh"><h2>${renameOnly ? '이름 바꾸기' : '채용공고 편집기'}</h2>${renameOnly ? '<button class="btn sm" type="button" id="lgCancel">취소</button>' : ''}</div>
       ${notice ? `<p class="hint" style="color:var(--c-danger)">${esc(notice)}</p>` : `<p class="hint">${renameOnly ? '공고 목록에 마지막으로 고친 사람으로 표시돼요.' : '직원들과 함께 쓰는 편집기예요. 처음 한 번만 입력하면 이 기기에 기억돼요.'}</p>`}
       <form id="lgForm" class="opt" style="margin-top:14px">
         ${renameOnly ? '' : `<label class="row"><span class="lab">매장 비밀번호</span><input id="lgPin" type="password" autocomplete="current-password" style="flex:1;min-width:0;border:1px solid var(--c-line);border-radius:9px;padding:9px 10px;background:var(--c-panel)" required></label>`}
