@@ -880,6 +880,7 @@ async function saveNow() {
 }
 function saveErrText(e) {
   const c = e?.code;
+  if (c === 'local') return '이 브라우저의 저장 공간이 가득 찼어요. 사진을 줄이거나 PNG로 먼저 저장하세요';
   if (c === 'invalid_argument') return '저장 실패: 편집 권한이 없거나 내용이 너무 커요';
   if (c === 'quota_exceeded') return '저장 공간이 가득 찼어요. 안 쓰는 공고를 지워주세요';
   if (c === 'resource_exhausted') return '잠시 후 다시 저장할게요';
@@ -1765,7 +1766,7 @@ function renderList() {
   let h = `<div class="mh"><h2>채용공고 목록</h2><button class="btn sm" type="button" data-close>닫기</button></div>
     ${canMake ? `<div class="row">${Object.entries(BRANDS).map(([k, v]) => `<button class="btn primary" type="button" data-lact="new" data-brand="${k}">＋ ${v.name} 새 공고</button>`).join('')}</div>` : ''}`;
   if (S.cloud) h += `<p class="hint" style="margin-top:12px">내 이름: <b>${esc(S.myName)}</b> · 공고에 마지막으로 고친 사람으로 표시돼요. <button class="btn sm" type="button" data-lact="rename">이름 바꾸기</button></p>`;
-  if (!S.db) h += `<p class="hint" style="margin-top:14px">로그인한 상태에서 열면 직원들과 공고 목록을 함께 쓸 수 있어요. 지금은 이 브라우저에만 저장돼요.</p>`;
+  if (!S.db) h += `<p class="hint" style="margin-top:14px">${window.HESED_DEMO ? '체험판은 공고 하나만 이 브라우저에 저장해요. 새 공고를 만들면 지금 공고를 대신해요.' : '로그인한 상태에서 열면 직원들과 공고 목록을 함께 쓸 수 있어요. 지금은 이 브라우저에만 저장돼요.'}</p>`;
   else if (!S.posts.length) h += `<p class="empty">아직 저장된 공고가 없어요.<br>지금 화면에서 수정하면 첫 공고로 자동 저장돼요.</p>`;
   else h += `<ul class="plist">${S.posts.map(p => `<li class="${p.id === S.postId ? 'cur' : ''}" data-id="${p.id}"><div class="pinfo"><b>${esc(p.title || '제목 없는 공고')}</b>
       <small>${relTime(p.updatedAt || p.createdAt || Date.now())}${nameOf(p.updatedBy) ? ' · ' + esc(nameOf(p.updatedBy)) : ''}${p.id === S.postId ? ' · 지금 보는 중' : ''}</small></div>
@@ -2020,7 +2021,7 @@ async function boot() {
   const C = window.claude;
   if (!C?.use) {
     if (window.HESED_CLOUD?.url) return bootCloud(window.HESED_CLOUD);
-    startLocal('미리보기 모드예요. 작업 내용은 이 브라우저에만 저장돼요.'); setSave(''); return;
+    startLocal(window.HESED_DEMO ? '체험판이에요. 실제 공고와 분리되어 있고, 작업 내용은 이 브라우저에만 저장돼요.' : '미리보기 모드예요. 작업 내용은 이 브라우저에만 저장돼요.'); setSave(''); return;
   }
   const use = n => C.use(n).catch(() => null);
   const [db, user, assets, downloads] = await Promise.all([use('db'), use('user'), use('assets'), use('downloads')]);
