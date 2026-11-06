@@ -128,6 +128,11 @@ button{cursor:pointer}
 .plist .pinfo b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .plist .pinfo small{color:var(--c-muted)}
 .plist .pact{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.plist li.locked{background:var(--c-soft)}
+.lock-tag{display:inline-block;font-size:11px;font-weight:700;color:var(--c-btn-fg);background:var(--c-btn);border-radius:999px;padding:2px 8px;margin-left:4px;vertical-align:2px}
+.ren-row{display:flex;gap:4px;align-items:center;margin-bottom:4px}
+.ren-in{flex:1;min-width:0;border:1px solid var(--c-sel);border-radius:8px;padding:6px 8px;font-weight:600;background:var(--c-panel)}
+.typebtn.paste{border-color:var(--c-sel);background:color-mix(in srgb,var(--c-sel) 8%,var(--c-panel))}
 .empty{color:var(--c-muted);text-align:center;padding:24px 0}
 .opt{display:grid;gap:12px;margin:6px 0 18px}
 .opt .row{flex-wrap:nowrap}
@@ -745,7 +750,7 @@ function secHTML(sec, i, E) {
   const extra = sec.type === 'spacer' ? `height:${sec.d.h}px;` : '';
   const cls = (sec.type === 'photo' || sec.type === 'grid') && sec.d.full ? ' full' : '';
   const chrome = E ? `<div class="sec-tag">${TYPES[sec.type].name}</div>
-    <div class="sec-tools"><button type="button" data-tool="up" title="위로">↑</button><button type="button" data-tool="down" title="아래로">↓</button><button type="button" data-tool="dup">복제</button><button type="button" class="del" data-tool="del">삭제</button></div>
+    <div class="sec-tools"><button type="button" data-tool="up" title="위로">↑</button><button type="button" data-tool="down" title="아래로">↓</button><button type="button" data-tool="copy" title="섹션 복사 · 다른 공고에도 붙여넣을 수 있어요">복사</button><button type="button" data-tool="dup">복제</button><button type="button" class="del" data-tool="del">삭제</button></div>
     <button type="button" class="add-btn" data-add="${i + 1}">＋ 여기에 섹션 추가</button>` : '';
   const acc = BRANDS[curBrand()].acc, accCSS = acc !== BRANDS.hesed.acc && secBg(sec) !== 'yellow' ? `--acc:${acc};` : '';
   return `<section class="sec t-${sec.type} bg-${secBg(sec)}${cls}" data-sid="${sec.id}" style="${accCSS}${pad}${extra}">${R(sec, E)}${freeHTML(sec, E)}${chrome}</section>`;
@@ -890,11 +895,15 @@ async function persist() {
   const now = Date.now();
   const body = {title: (S.post.title || '').trim() || '제목 없는 공고', doc: S.post.doc, createdAt: S.post.createdAt || now, updatedAt: now, updatedBy: S.uid || null};
   if (!S.db) { try { localStorage.setItem(LS_KEY, JSON.stringify(body)); } catch (e) { throw {code: 'local'}; } return; }
-  if (!S.postId) {
+  const fresh = !S.postId;
+  if (fresh) {
     S.postId = uid(); S.post.createdAt = now;
     await takeLock(S.postId);
   }
-  await S.db.doc('posts/' + S.postId).set(body);
+  const ref = S.db.doc('posts/' + S.postId);
+  // 공용 저장소의 저장 함수는 잠금 · 이름을 따로 다루고, Claude 저장소는 합쳐 쓰기로 잠금 값을 지킨다
+  if (fresh || S.cloud) await ref.set(body);
+  else { try { await ref.update(body); } catch (e) { if (e?.code === 'invalid_argument') await ref.set(body); else throw e; } }
   S.post.updatedAt = now;
 }
 async function takeLock(id) {
@@ -915,7 +924,7 @@ async function takeLock(id) {
 /* ---------------- 공고 열기 / 만들기 ---------------- */
 async function flush() { if (S.saveT || S.saving) { await saveNow(); } }
 function loadPost(id, data) {
-  S.postId = id; S.post = clone({title: data.title, doc: data.doc, createdAt: data.createdAt, updatedAt: data.updatedAt});
+  S.postId = id; S.post = clone({title: data.title, doc: data.doc, createdAt: data.createdAt, updatedAt: data.updatedAt, locked: !!data.locked});
   S.hist = []; S.fut = []; S.sel = null;
   $('#postTitle').value = S.post.title || '';
   updUndo();
@@ -1187,6 +1196,7 @@ function readClip(e) {
   let p = null;
   try { const raw = e.clipboardData.getData(CLIP_TYPE); if (raw) p = JSON.parse(raw); } catch (er) {}
   if (!p && S.clip && S.clip.text === text) p = S.clip.payload;
+  if (!p) { const sc = getSecClip(); if (sc && sc.text === text) p = sc; }
   if (p && p.text !== undefined && p.text !== text) p = null;
   return {text, p};
 }
@@ -1207,6 +1217,13 @@ function onCopy(e, cut) {
     writeClip(e, text, {kind: 'cells', text, cells});
     if (cut && !S.readOnly) commit(() => forCells(sec.d, s, x => { x.t = ''; }));
     toast(cut ? '칸을 잘라냈어요' : `칸 ${cells.length * cells[0].length}개를 복사했어요`, 1400);
+    return;
+  }
+  // 섹션을 고른 상태(글자 편집 중이 아님)면 섹션 통째로
+  if (s?.kind === 'sec' && !f) {
+    const sec = findSec(s.sid); if (!sec) return;
+    copySection(sec, e);
+    if (cut && !S.readOnly) secAction('del', sec.id);
     return;
   }
   // 글자 일부 + 그 글자의 서식
@@ -1253,6 +1270,11 @@ function onPaste(e) {
   if (isTyping() || S.readOnly) return;
   const f = document.activeElement?.closest?.('#page .f, #page .ft');
   const s = S.sel, {text, p} = readClip(e);
+  if (p?.kind === 'section' && !f) {
+    e.preventDefault();
+    const i = s ? S.post.doc.sections.findIndex(x => x.id === s.sid) : -1;
+    pasteSection(i >= 0 ? i + 1 : S.post.doc.sections.length); return;
+  }
   const cellsMode = s?.kind === 'cells' && (!f || f.closest('.gt'));
   if (cellsMode) {
     const sec = findSec(s.sid);
@@ -1348,7 +1370,31 @@ function secAction(act, sid) {
   if (act === 'up' && i > 0) commit(() => { [secs[i - 1], secs[i]] = [secs[i], secs[i - 1]]; S.sel = {sid, kind: 'sec'}; });
   if (act === 'down' && i < secs.length - 1) commit(() => { [secs[i + 1], secs[i]] = [secs[i], secs[i + 1]]; S.sel = {sid, kind: 'sec'}; });
   if (act === 'dup') commit(() => { const c = reId(clone(secs[i])); secs.splice(i + 1, 0, c); S.sel = {sid: c.id, kind: 'sec'}; });
+  if (act === 'copy') copySection(secs[i]);
   if (act === 'del') { commit(() => { secs.splice(i, 1); S.sel = null; }); toast('섹션을 삭제했어요 · Ctrl+Z로 되돌릴 수 있어요'); }
+}
+// 섹션 통째로 복사: 이 탭에서는 S.secClip, 다른 공고 · 다른 탭에서는 브라우저에 남긴 사본을 쓴다
+const SEC_CLIP = 'hesed.secclip';
+function getSecClip() {
+  if (S.secClip) return S.secClip;
+  try { return JSON.parse(localStorage.getItem(SEC_CLIP) || 'null'); } catch (e) { return null; }
+}
+function copySection(sec, e) {
+  const payload = {kind: 'section', text: `[섹션] ${TYPES[sec.type].name}`, section: clone(sec)};
+  S.secClip = payload;
+  try { localStorage.setItem(SEC_CLIP, JSON.stringify(payload)); } catch (er) {}
+  if (e) writeClip(e, payload.text, payload);
+  toast(`‘${TYPES[sec.type].name}’ 섹션을 복사했어요 · 다른 공고에서도 붙여넣을 수 있어요`);
+  renderPanel();
+}
+function pasteSection(at) {
+  const clip = getSecClip();
+  if (!clip?.section) { toast('복사한 섹션이 없어요. 섹션을 고르고 ‘섹션 복사’를 먼저 눌러 주세요'); return; }
+  const sec = reId(clone(clip.section));
+  commit(() => { S.post.doc.sections.splice(at, 0, sec); S.sel = {sid: sec.id, kind: 'sec'}; });
+  closeModal();
+  setTimeout(() => $(`.sec[data-sid="${sec.id}"]`)?.scrollIntoView({behavior: 'smooth', block: 'center'}), 0);
+  toast(`‘${TYPES[sec.type].name}’ 섹션을 붙여넣었어요`);
 }
 function addSection(type, at) {
   const s = makeSection(type);
@@ -1462,6 +1508,11 @@ function panelHome() {
     <h3>섹션 추가</h3><div class="typelist">${typeButtons(S.post.doc.sections.length)}</div>`;
 }
 function typeButtons(at) {
+  const clip = getSecClip();
+  const paste = clip?.section && TYPES[clip.section.type] ? `<button type="button" class="typebtn paste" data-act="pastesec" data-at="${at}"><span class="thumb th-${clip.section.type}${secBg(clip.section) === 'black' ? ' dark' : ''}"></span><span><b>복사한 섹션 붙여넣기</b><small>${esc(TYPES[clip.section.type].name)} · 복사한 그대로 들어가요</small></span></button>` : '';
+  return paste + typeButtonsOnly(at);
+}
+function typeButtonsOnly(at) {
   return Object.entries(TYPES).map(([k, t]) => `<button type="button" class="typebtn" data-act="addsec" data-type="${k}" data-at="${at}"><span class="thumb th-${k}${t.bg === 'black' ? ' dark' : ''}"></span><span><b>${t.name}</b><small>${t.desc}</small></span></button>`).join('');
 }
 function listLabel(sec, item) {
@@ -1480,7 +1531,9 @@ function panelSec(sec) {
   const pt = sec.pt ?? Math.round(parseFloat(cs.paddingTop) || 0), pb = sec.pb ?? Math.round(parseFloat(cs.paddingBottom) || 0);
   let h = `<p class="ptitle">${t.name}</p><p class="hint">${t.desc}</p>
     <div class="grid2" style="margin-top:12px"><button class="btn" type="button" data-act="sec" data-v="up">↑ 위로</button><button class="btn" type="button" data-act="sec" data-v="down">↓ 아래로</button>
-    <button class="btn" type="button" data-act="sec" data-v="dup">복제</button><button class="btn danger" type="button" data-act="sec" data-v="del">삭제</button></div>`;
+    <button class="btn" type="button" data-act="sec" data-v="dup">복제</button><button class="btn danger" type="button" data-act="sec" data-v="del">삭제</button></div>
+    <div class="grid2" style="margin-top:6px"><button class="btn" type="button" data-act="seccopy">섹션 복사</button><button class="btn" type="button" data-act="secpaste"${getSecClip()?.section ? '' : ' disabled'}>아래에 붙여넣기</button></div>
+    <p class="hint" style="margin-top:6px">복사한 섹션은 다른 공고에서도 붙여넣을 수 있어요. Ctrl+C / Ctrl+V도 돼요.</p>`;
   if (t.list) {
     const items = d[t.list];
     h += `<h3>${sec.type === 'jobs' ? '직무' : sec.type === 'table' ? '항목' : sec.type === 'steps' ? '단계' : '동그라미'} ${items.length}개</h3><ul class="items">${items.map((it, i) => `<li><span>${esc(listLabel(sec, it))}</span>
@@ -1722,6 +1775,9 @@ P.addEventListener('click', async e => {
     case 'addimg': addFreeImage(sec.id); break;
     case 'export': openExport(); break;
     case 'brand': switchBrand(b.dataset.v); break;
+    case 'seccopy': copySection(sec); break;
+    case 'secpaste': { const i = S.post.doc.sections.indexOf(sec); pasteSection(i + 1); break; }
+    case 'pastesec': pasteSection(+b.dataset.at); break;
     case 'seticon': commit(() => { sec.d.icons = sec.d.icons || []; sec.d.icons[S.sel.i] = b.dataset.v; }); break;
     case 'iconimg': { const i = S.sel.i, f = await pickFile(); if (!f) break; const w = toast('아이콘을 올리는 중…', 0);
       try { const r = await ingest(f); commit(() => { sec.d.icons = sec.d.icons || []; sec.d.icons[i] = 'img:' + r.src; S.sel = {sid: sec.id, kind: 'icon', i}; }); } catch (er) { toast(er.message); } w.remove(); break; }
@@ -1757,6 +1813,7 @@ function openPicker(at) {
 }
 $('#modal').addEventListener('click', e => {
   const b = e.target.closest('[data-act="addsec"]'); if (b) addSection(b.dataset.type, +b.dataset.at);
+  const pb = e.target.closest('[data-act="pastesec"]'); if (pb) pasteSection(+pb.dataset.at);
 });
 
 $('#btnList').onclick = () => { openModal('<div class="mcard" role="dialog" aria-label="공고 목록" id="listCard"></div>', 'list'); renderList(); };
@@ -1768,11 +1825,56 @@ function renderList() {
   if (S.cloud) h += `<p class="hint" style="margin-top:12px">내 이름: <b>${esc(S.myName)}</b> · 공고에 마지막으로 고친 사람으로 표시돼요. <button class="btn sm" type="button" data-lact="rename">이름 바꾸기</button></p>`;
   if (!S.db) h += `<p class="hint" style="margin-top:14px">${window.HESED_DEMO ? '체험판은 공고 하나만 이 브라우저에 저장해요. 새 공고를 만들면 지금 공고를 대신해요.' : '로그인한 상태에서 열면 직원들과 공고 목록을 함께 쓸 수 있어요. 지금은 이 브라우저에만 저장돼요.'}</p>`;
   else if (!S.posts.length) h += `<p class="empty">아직 저장된 공고가 없어요.<br>지금 화면에서 수정하면 첫 공고로 자동 저장돼요.</p>`;
-  else h += `<ul class="plist">${S.posts.map(p => `<li class="${p.id === S.postId ? 'cur' : ''}" data-id="${p.id}"><div class="pinfo"><b>${esc(p.title || '제목 없는 공고')}</b>
-      <small>${relTime(p.updatedAt || p.createdAt || Date.now())}${nameOf(p.updatedBy) ? ' · ' + esc(nameOf(p.updatedBy)) : ''}${p.id === S.postId ? ' · 지금 보는 중' : ''}</small></div>
-      <div class="pact">${S.confirmDel === p.id ? `<button class="btn sm danger" type="button" data-lact="del2">정말 삭제</button><button class="btn sm" type="button" data-lact="cancel">취소</button>`
-        : `<button class="btn sm" type="button" data-lact="open">열기</button>${canMake ? `<button class="btn sm" type="button" data-lact="dup">복제</button><button class="btn sm danger" type="button" data-lact="del">삭제</button>` : ''}`}</div></li>`).join('')}</ul>`;
+  else h += `<ul class="plist">${S.posts.map(p => {
+      const cur = p.id === S.postId, ren = S.renaming === p.id;
+      const title = ren ? `<span class="ren-row"><input class="ren-in" id="renIn" value="${esc(p.title || '')}" maxlength="60" aria-label="공고 이름"><button class="btn sm primary" type="button" data-lact="ren-ok">저장</button><button class="btn sm" type="button" data-lact="ren-no">취소</button></span>`
+        : `<b>${esc(p.title || '제목 없는 공고')}${p.locked ? ' <span class="lock-tag">잠김</span>' : ''}</b>`;
+      const acts = S.confirmDel === p.id ? `<button class="btn sm danger" type="button" data-lact="del2">정말 삭제</button><button class="btn sm" type="button" data-lact="cancel">취소</button>`
+        : `<button class="btn sm" type="button" data-lact="open">열기</button>${canMake ? `<button class="btn sm" type="button" data-lact="ren">이름 바꾸기</button><button class="btn sm" type="button" data-lact="dup">복제</button>
+          <button class="btn sm" type="button" data-lact="lock">${p.locked ? '잠금 풀기' : '잠그기'}</button>
+          <button class="btn sm danger" type="button" data-lact="del"${p.locked ? ' disabled title="잠긴 공고는 삭제할 수 없어요"' : ''}>삭제</button>` : ''}`;
+      return `<li class="${cur ? 'cur' : ''}${p.locked ? ' locked' : ''}" data-id="${p.id}"><div class="pinfo">${title}
+      <small>${relTime(p.updatedAt || p.createdAt || Date.now())}${nameOf(p.updatedBy) ? ' · ' + esc(nameOf(p.updatedBy)) : ''}${cur ? ' · 지금 보는 중' : ''}</small></div>
+      <div class="pact">${ren ? '' : acts}</div></li>`;
+    }).join('')}</ul>
+    <p class="hint" style="margin-top:12px">잠근 공고는 삭제되지 않아요. 지우려면 잠금을 먼저 풀어 주세요.</p>`;
   c.innerHTML = h;
+  const ri = $('#renIn');
+  if (ri) {
+    ri.focus(); ri.select();
+    ri.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); renamePost(S.renaming, ri.value); }
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); S.renaming = null; renderList(); }
+    });
+  }
+}
+// 목록에서 공고 이름 바꾸기. 다른 사람이 그 공고를 편집 중이면 그 사람의 저장이 이름을 되돌리므로 막는다.
+async function renamePost(id, raw) {
+  const title = String(raw || '').trim(); const p = S.posts.find(x => x.id === id);
+  if (!title || !p) { toast('공고 이름을 입력해 주세요'); return; }
+  S.renaming = null;
+  if (title === p.title) { renderList(); return; }
+  if (id === S.postId) {
+    if (S.readOnly) { toast('지금은 보기만 할 수 있는 공고라 이름을 바꿀 수 없어요'); renderList(); return; }
+    S.post.title = title; $('#postTitle').value = title; p.title = title; changed(); renderList(); toast('이름을 바꿨어요'); return;
+  }
+  try {
+    const r = await S.db.doc('locks/' + id).acquire({holder: S.holder, ttlMs: 10000});
+    if (!r.acquired) { toast(`${S.lockName ? S.lockName + '님이' : '다른 직원이'} 편집 중이라 지금은 이름을 바꿀 수 없어요`); renderList(); return; }
+    await S.db.doc('posts/' + id).update({title});
+    p.title = title; renderList(); toast('이름을 바꿨어요');
+  } catch (er) { toast(er?.code === 'missing_fn' ? '이름 바꾸기를 쓰려면 저장소 설정을 한 번 업데이트해 주세요' : '이름을 바꾸지 못했어요. 잠시 후 다시 시도해 주세요'); renderList(); }
+}
+// 공고 잠금: 잠긴 공고는 삭제할 수 없다 (직원용 사이트는 저장소에서도 막음)
+async function toggleLock(id) {
+  const p = S.posts.find(x => x.id === id); if (!p) return;
+  const next = !p.locked;
+  p.locked = next; if (id === S.postId) S.post.locked = next; renderList();
+  try { await S.db.doc('posts/' + id).update({locked: next}); toast(next ? '공고를 잠갔어요 · 이제 삭제되지 않아요' : '잠금을 풀었어요'); }
+  catch (er) {
+    p.locked = !next; if (id === S.postId) S.post.locked = !next; renderList();
+    toast(er?.code === 'missing_fn' ? '잠금을 쓰려면 저장소 설정을 한 번 업데이트해 주세요' : '잠그지 못했어요. 잠시 후 다시 시도해 주세요');
+  }
 }
 $('#modal').addEventListener('click', async e => {
   const b = e.target.closest('[data-lact]'); if (!b) return;
@@ -1781,12 +1883,16 @@ $('#modal').addEventListener('click', async e => {
   if (a === 'open') { closeModal(); openPost(id); }
   if (a === 'rename') { await askLogin(true); renderList(); return; }
   if (a === 'dup') { const p = await fullPost(id); if (!p) { toast('공고를 불러오지 못했어요'); return; } closeModal(); await newPost({title: (p.title || '') + ' 복사본', doc: clone(p.doc)}, {save: true}); toast('복사본을 만들었어요'); }
-  if (a === 'del') { S.confirmDel = id; renderList(); }
+  if (a === 'ren') { S.renaming = id; S.confirmDel = null; renderList(); return; }
+  if (a === 'ren-ok') { renamePost(S.renaming, $('#renIn')?.value); return; }
+  if (a === 'ren-no') { S.renaming = null; renderList(); return; }
+  if (a === 'lock') { toggleLock(id); return; }
+  if (a === 'del') { if (S.posts.find(x => x.id === id)?.locked) { toast('잠긴 공고는 삭제할 수 없어요. 잠금을 먼저 풀어 주세요'); return; } S.confirmDel = id; renderList(); }
   if (a === 'cancel') { S.confirmDel = null; renderList(); }
   if (a === 'del2') {
     S.confirmDel = null;
     try { await S.db.doc('posts/' + id).delete(); toast('공고를 삭제했어요'); if (id === S.postId) { clearTimeout(S.saveT); S.saveT = null; S.postId = null; await newPost(); } }
-    catch (er) { toast('삭제하지 못했어요. 권한을 확인하세요'); }
+    catch (er) { toast(er?.code === 'post_locked' ? '잠긴 공고라 삭제하지 않았어요. 잠금을 먼저 풀어 주세요' : '삭제하지 못했어요. 권한을 확인하세요'); }
     renderList();
   }
 });
@@ -1936,6 +2042,8 @@ async function cloudRpc(fn, args = {}, pin = S.pin) {
   const txt = await r.text();
   if (!r.ok) {
     if (/wrong_pin/.test(txt)) { lsSet('hesed.pin', ''); S.pin = ''; setTimeout(() => askLogin(false, '매장 비밀번호가 바뀌었어요. 새 비밀번호를 입력하세요'), 0); throw {code: 'wrong_pin'}; }
+    if (/post_locked/.test(txt)) throw {code: 'post_locked', message: txt};
+    if (r.status === 404 || /PGRST202|Could not find the function/.test(txt)) throw {code: 'missing_fn', message: txt};
     throw {code: r.status === 413 ? 'invalid_argument' : 'unavailable', message: txt};
   }
   return txt ? JSON.parse(txt) : null;
@@ -1947,7 +2055,7 @@ function cloudDB() {
     if (!S.pin) return;
     try {
       const rows = await cloudRpc('list_posts');
-      const docs = rows.map(p => snapDoc(p.id, {title: p.title, createdAt: p.createdAt, updatedAt: p.updatedAt, updatedBy: p.updatedBy}));
+      const docs = rows.map(p => snapDoc(p.id, {title: p.title, createdAt: p.createdAt, updatedAt: p.updatedAt, updatedBy: p.updatedBy, locked: !!p.locked}));
       listeners.forEach(l => l.next({docs, size: docs.length, empty: !docs.length}));
     } catch (e) { if (e.code !== 'wrong_pin') listeners.forEach(l => l.err?.(e)); }
   };
@@ -1965,6 +2073,12 @@ function cloudDB() {
         async set(b) {
           if (col === 'posts') { await cloudRpc('save_post', {p_id: id, p_title: b.title, p_doc: b.doc, p_by: b.updatedBy, p_created: b.createdAt, p_updated: b.updatedAt}); poll(); }
           if (col === 'images') await cloudRpc('put_image', {p_id: id, p_data: b.data});
+        },
+        async update(b) {
+          if (col !== 'posts') return;
+          if ('locked' in b) await cloudRpc('set_post_locked', {p_id: id, p_locked: !!b.locked});
+          if ('title' in b) await cloudRpc('rename_post', {p_id: id, p_title: b.title});
+          poll();
         },
         async delete() { await cloudRpc('delete_post', {p_id: id}); poll(); },
         async acquire({holder, ttlMs}) {
